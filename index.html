@@ -517,7 +517,8 @@
           videoEl.getAttribute('data-src-kind') === nextKind &&
           (videoEl.currentSrc || videoEl.getAttribute('src'))
         ) {
-          if (videoEl.preload === 'none') {
+          var wasPreloadNone = (videoEl.preload === 'none' || videoEl.getAttribute('preload') === 'none');
+          if (wasPreloadNone) {
             videoEl.preload = 'auto';
           }
           if (videoEl.readyState > 0) {
@@ -525,8 +526,7 @@
             setVideoLoadingToast(false);
           } else {
             setVideoLoadingToast(nextKind === 'net' && appState.mode !== 'idle');
-            // Halihazırda ağdan veri çekiyorsa (NETWORK_LOADING = 2) akışı iptal edip baştan başlatma!
-            if (videoEl.networkState !== 2) {
+            if (wasPreloadNone || videoEl.networkState !== 2) {
               videoEl.load();
             }
           }
@@ -573,6 +573,7 @@
         vidIntro.loop = false;
         vidIntro.muted = false;
         vidIntro.play().catch(function (err) {
+          if (err && err.name === 'AbortError') return;
           console.log('Giriş videosu başlatılamadı, döngü videosuna geçiliyor:', err);
           activateHubLoop();
         });
@@ -1847,9 +1848,9 @@
     <!-- Yavaş bağlantıda henüz önbelleğe inmemiş bir sahne açılırken gösterilen bildirim -->
     <div id="video-loading-toast" role="status" aria-live="polite">⏳ 360° sahne yükleniyor, lütfen bekleyiniz...</div>
 
-    <!-- 360° VİDEO HAVUZU (<a-assets> dışındadır; başlangıçta arka plan önbelleğiyle bant genişliği yarışı yapmaz) -->
+    <!-- 360° VİDEO HAVUZU (<a-assets> dışındadır; yalnızca ilk karşılama sahnesi üst verisi hazır tutulur) -->
     <div id="video-pool" style="display: none;" aria-hidden="true">
-      <video id="vid-intro" src="00_A_ANA_MENU_GIRIS.mp4" data-file="00_A_ANA_MENU_GIRIS.mp4" data-src-kind="net" preload="none" playsinline webkit-playsinline></video>
+      <video id="vid-intro" src="00_A_ANA_MENU_GIRIS.mp4" data-file="00_A_ANA_MENU_GIRIS.mp4" data-src-kind="net" preload="metadata" playsinline webkit-playsinline></video>
       <video id="vid-loop" src="00_B_ANA_MENU_LOOP.mp4" data-file="00_B_ANA_MENU_LOOP.mp4" data-src-kind="net" preload="none" playsinline webkit-playsinline loop></video>
       <video id="vid-scene" src="01_YARDIMLASMA_ANA.mp4" data-file="01_YARDIMLASMA_ANA.mp4" data-src-kind="net" preload="none" playsinline webkit-playsinline></video>
     </div>
