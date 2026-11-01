@@ -191,6 +191,24 @@
         color: #ffd6d1;
       }
 
+      #video-loading-toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 22px;
+        background: rgba(12, 11, 10, 0.88);
+        border: 1px solid rgba(229, 184, 105, 0.45);
+        border-radius: 999px;
+        color: #f0c97d;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 13px;
+        letter-spacing: 0.6px;
+        z-index: 9500;
+        pointer-events: none;
+        display: none;
+      }
+
       .a-enter-vr {
         z-index: 10000 !important;
       }
@@ -480,6 +498,12 @@
       /* =====================================================================
          VİDEO VE SAHNE YÖNETİMİ
          ===================================================================== */
+      function setVideoLoadingToast(visible) {
+        var toast = document.getElementById('video-loading-toast');
+        if (!toast) return;
+        toast.style.display = visible ? 'block' : 'none';
+      }
+
       function applyPreferredVideoSource(videoEl, fileName) {
         if (!videoEl || !fileName) return;
         var cachedBlobUrl = (typeof cacheManager !== 'undefined' && cacheManager.blobUrls && cacheManager.blobUrls[fileName])
@@ -498,8 +522,13 @@
           }
           if (videoEl.readyState > 0) {
             try { videoEl.currentTime = 0; } catch (e) {}
+            setVideoLoadingToast(false);
           } else {
-            videoEl.load();
+            setVideoLoadingToast(nextKind === 'net' && appState.mode !== 'idle');
+            // Halihazırda ağdan veri çekiyorsa (NETWORK_LOADING = 2) akışı iptal edip baştan başlatma!
+            if (videoEl.networkState !== 2) {
+              videoEl.load();
+            }
           }
           return;
         }
@@ -508,6 +537,7 @@
         videoEl.setAttribute('data-file', fileName);
         videoEl.setAttribute('data-src-kind', nextKind);
         videoEl.src = nextSrc;
+        setVideoLoadingToast(nextKind === 'net' && appState.mode !== 'idle');
         videoEl.load();
       }
 
@@ -1279,9 +1309,21 @@
           }
         });
 
-        // Aktif video oynatma tamponunu doldurduğunda arka plan önbelleklemesini devam ettir
+        // Aktif video oynatma tamponunu doldurduğunda yükleniyor bildirimini gizle ve arka plan önbelleğini sürdür
         [vidIntro, vidLoop, vidScene].forEach(function (v) {
+          v.addEventListener('canplay', function () {
+            setVideoLoadingToast(false);
+          });
+          v.addEventListener('playing', function () {
+            setVideoLoadingToast(false);
+          });
+          v.addEventListener('timeupdate', function () {
+            if (v.currentTime > 0.05) {
+              setVideoLoadingToast(false);
+            }
+          });
           v.addEventListener('canplaythrough', function () {
+            setVideoLoadingToast(false);
             if (cacheManager.deferUntil > Date.now()) {
               cacheManager.deferUntil = 0;
             }
@@ -1706,13 +1748,13 @@
         if (vidIntro && appState.mode === 'idle') {
           vidIntro.setAttribute('data-file', '00_A_ANA_MENU_GIRIS.mp4');
           vidIntro.setAttribute('data-src-kind', 'net');
-          vidIntro.preload = 'metadata';
+          vidIntro.preload = 'none';
           vidIntro.src = '00_A_ANA_MENU_GIRIS.mp4';
         }
         if (vidLoop && appState.mode === 'idle') {
           vidLoop.setAttribute('data-file', '00_B_ANA_MENU_LOOP.mp4');
           vidLoop.setAttribute('data-src-kind', 'net');
-          vidLoop.preload = 'metadata';
+          vidLoop.preload = 'none';
           vidLoop.src = '00_B_ANA_MENU_LOOP.mp4';
         }
         if (vidScene && appState.mode === 'idle') {
@@ -1802,10 +1844,13 @@
       </div>
     </div>
 
-    <!-- 360° VİDEO HAVUZU (<a-assets> dışındadır; sahne açılışını 8 sn bekletmez ve ağ çakışması yaratmaz) -->
+    <!-- Yavaş bağlantıda henüz önbelleğe inmemiş bir sahne açılırken gösterilen bildirim -->
+    <div id="video-loading-toast" role="status" aria-live="polite">⏳ 360° sahne yükleniyor, lütfen bekleyiniz...</div>
+
+    <!-- 360° VİDEO HAVUZU (<a-assets> dışındadır; başlangıçta arka plan önbelleğiyle bant genişliği yarışı yapmaz) -->
     <div id="video-pool" style="display: none;" aria-hidden="true">
-      <video id="vid-intro" src="00_A_ANA_MENU_GIRIS.mp4" data-file="00_A_ANA_MENU_GIRIS.mp4" data-src-kind="net" preload="metadata" playsinline webkit-playsinline></video>
-      <video id="vid-loop" src="00_B_ANA_MENU_LOOP.mp4" data-file="00_B_ANA_MENU_LOOP.mp4" data-src-kind="net" preload="metadata" playsinline webkit-playsinline loop></video>
+      <video id="vid-intro" src="00_A_ANA_MENU_GIRIS.mp4" data-file="00_A_ANA_MENU_GIRIS.mp4" data-src-kind="net" preload="none" playsinline webkit-playsinline></video>
+      <video id="vid-loop" src="00_B_ANA_MENU_LOOP.mp4" data-file="00_B_ANA_MENU_LOOP.mp4" data-src-kind="net" preload="none" playsinline webkit-playsinline loop></video>
       <video id="vid-scene" src="01_YARDIMLASMA_ANA.mp4" data-file="01_YARDIMLASMA_ANA.mp4" data-src-kind="net" preload="none" playsinline webkit-playsinline></video>
     </div>
 
