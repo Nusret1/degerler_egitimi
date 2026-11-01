@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#e5b869">
+    <link rel="manifest" href="manifest.json">
     <title>Değerler Eğitimi: Çınaraltı Hatıraları (360° VR)</title>
     <script src="aframe.min.js"></script>
 
@@ -74,6 +76,95 @@
       #start-button:hover {
         background-color: #f3cc85;
         transform: translateY(-1px);
+      }
+
+      #offline-cache-box {
+        margin-top: 26px;
+        width: 100%;
+        max-width: 460px;
+        padding: 13px 18px;
+        background: rgba(18, 16, 14, 0.82);
+        border: 1px solid rgba(229, 184, 105, 0.28);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 9px;
+      }
+
+      #cache-status-text {
+        font-size: 13px;
+        color: #d8cfc2;
+        letter-spacing: 0.4px;
+        line-height: 1.4;
+      }
+
+      #cache-progress {
+        width: 100%;
+        height: 7px;
+        appearance: none;
+        -webkit-appearance: none;
+        border: none;
+        border-radius: 999px;
+        overflow: hidden;
+        background-color: rgba(255, 255, 255, 0.12);
+      }
+
+      #cache-progress::-webkit-progress-bar {
+        background-color: rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+      }
+
+      #cache-progress::-webkit-progress-value {
+        background: linear-gradient(90deg, #c99846, #f0c97d);
+        border-radius: 999px;
+        transition: width 0.25s ease;
+      }
+
+      #cache-progress::-moz-progress-bar {
+        background: linear-gradient(90deg, #c99846, #f0c97d);
+        border-radius: 999px;
+      }
+
+      .cache-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .cache-btn {
+        padding: 6px 13px;
+        font-size: 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: inherit;
+        letter-spacing: 0.5px;
+        transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+      }
+
+      #start-cache-btn {
+        display: none;
+        background: rgba(229, 184, 105, 0.16);
+        color: #f0c97d;
+        border: 1px solid rgba(229, 184, 105, 0.5);
+      }
+
+      #start-cache-btn:hover {
+        background: rgba(229, 184, 105, 0.28);
+      }
+
+      #clear-cache-btn {
+        display: none;
+        background: rgba(255, 255, 255, 0.06);
+        color: #b8afa4;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      #clear-cache-btn:hover {
+        background: rgba(220, 76, 60, 0.2);
+        border-color: rgba(231, 76, 60, 0.55);
+        color: #ffd6d1;
       }
 
       #signature {
@@ -476,9 +567,14 @@
         document.getElementById('hub-entities').setAttribute('position', '0 9999 0');
 
         // Sahne içi kontrolleri ve bilgi noktasını göster, bilgi panelini kapalı tut
-        document.getElementById('scene-controls-entity').setAttribute('position', '0 -0.32 -2.45');
-        document.getElementById('hotspot-entity').setAttribute('position', '1.85 2.05 -3.0');
+        document.getElementById('scene-controls-entity').setAttribute('position', '0 -0.36 -2.95');
+        document.getElementById('hotspot-entity').setAttribute('position', '2.05 2.08 -3.45');
         document.getElementById('info-panel-entity').setAttribute('position', '0 9999 0');
+
+        // Seçilen bölümün videolarına çevrimdışı kayıt kuyruğunda öncelik ver
+        if (typeof prioritizeChapterInCache === 'function') {
+          prioritizeChapterInCache(chapterIdx, sceneData.file);
+        }
 
         // Alt sahne sekmelerini ve bilgi panelini güncelle
         updateSceneControlsUI();
@@ -894,7 +990,7 @@
             parent.setAttribute('scale', '1 1 1');
           });
           el.addEventListener('click', function () {
-            document.getElementById('info-panel-entity').setAttribute('position', '0 1.55 -2.5');
+            document.getElementById('info-panel-entity').setAttribute('position', '0 1.58 -3.05');
             parent.setAttribute('position', '0 9999 0');
           });
         }
@@ -983,7 +1079,7 @@
           });
           el.addEventListener('click', function () {
             document.getElementById('info-panel-entity').setAttribute('position', '0 9999 0');
-            document.getElementById('hotspot-entity').setAttribute('position', '1.85 2.05 -3.0');
+            document.getElementById('hotspot-entity').setAttribute('position', '2.05 2.08 -3.45');
           });
         },
         draw: function () {
@@ -1125,7 +1221,300 @@
             updateReplayButtonState();
           }
         });
+
+        // Sahne videosu oynatmaya hazır olduğunda arka plan önbelleklemesini hemen devam ettir
+        vidScene.addEventListener('canplaythrough', function () {
+          if (cacheManager.deferUntil > Date.now()) {
+            cacheManager.deferUntil = 0;
+          }
+        });
+
+        initOfflineCacheSystem();
       });
+
+      /* =====================================================================
+         ÇEVRİMDIŞI ÖNBELLEK SİSTEMİ (META QUEST 3 & TARAYICI KALICI DEPOLAMA)
+         Sayfa açılır açılmaz videoları sırayla gözlük hafızasına kaydeder
+         ===================================================================== */
+      var OFFLINE_CACHE_NAME = 'cinaralti-vr-v1';
+
+      function buildDefaultVideoPriority() {
+        var list = ['00_A_ANA_MENU_GIRIS.mp4', '00_B_ANA_MENU_LOOP.mp4'];
+        var i;
+        for (i = 0; i < CHAPTERS.length; i++) {
+          list.push(CHAPTERS[i].scenes[0].file);
+        }
+        for (i = 0; i < CHAPTERS.length; i++) {
+          list.push(CHAPTERS[i].scenes[1].file);
+          list.push(CHAPTERS[i].scenes[2].file);
+        }
+        return list;
+      }
+
+      var cacheManager = {
+        supported: false,
+        running: false,
+        stoppedByUser: false,
+        reprioritized: false,
+        currentFile: null,
+        abortCtrl: null,
+        deferUntil: 0,
+        cachedSet: {},
+        queue: buildDefaultVideoPriority()
+      };
+
+      function resolveAssetUrl(fileName) {
+        var u = new URL(fileName, window.location.href);
+        return u.origin + u.pathname;
+      }
+
+      function getCachedCount() {
+        return Object.keys(cacheManager.cachedSet).length;
+      }
+
+      function updateOfflineCacheUI(customMessage) {
+        var box = document.getElementById('offline-cache-box');
+        var txt = document.getElementById('cache-status-text');
+        var bar = document.getElementById('cache-progress');
+        var clearBtn = document.getElementById('clear-cache-btn');
+        var startBtn = document.getElementById('start-cache-btn');
+        if (!box || !txt || !bar) return;
+
+        if (!cacheManager.supported) {
+          box.style.display = 'none';
+          return;
+        }
+
+        var total = cacheManager.queue.length;
+        var done = getCachedCount();
+        var pct = Math.round((done / total) * 100);
+        bar.max = total;
+        bar.value = done;
+
+        if (customMessage) {
+          txt.textContent = customMessage;
+        } else if (done >= total) {
+          txt.textContent = '✅ Tüm videolar gözlük hafızasında hazır (' + done + ' / ' + total + ') — Anında açılır';
+        } else if (cacheManager.running) {
+          txt.textContent = '📥 Gözlük hafızasına kaydediliyor: ' + done + ' / ' + total + ' video (%' + pct + ')';
+        } else {
+          txt.textContent = 'Çevrimdışı depolama durumu: ' + done + ' / ' + total + ' video hazır';
+        }
+
+        if (clearBtn) {
+          clearBtn.style.display = (done > 0 || cacheManager.running) ? 'inline-block' : 'none';
+        }
+        if (startBtn) {
+          startBtn.style.display = (cacheManager.stoppedByUser && done < total) ? 'inline-block' : 'none';
+        }
+      }
+
+      async function syncCachedSetFromStorage() {
+        var cache = await caches.open(OFFLINE_CACHE_NAME);
+        var map = {};
+        for (var i = 0; i < cacheManager.queue.length; i++) {
+          var f = cacheManager.queue[i];
+          var hit = await cache.match(resolveAssetUrl(f), { ignoreSearch: true });
+          if (hit) {
+            map[f] = true;
+          }
+        }
+        cacheManager.cachedSet = map;
+        return cache;
+      }
+
+      function prioritizeChapterInCache(chapterIdx, activeFile) {
+        if (!cacheManager.supported) return;
+        var chapter = CHAPTERS[chapterIdx];
+        if (!chapter) return;
+
+        var priorityFiles = [
+          activeFile,
+          chapter.scenes[0].file,
+          chapter.scenes[1].file,
+          chapter.scenes[2].file
+        ];
+
+        var seen = {};
+        var newQueue = [];
+        var i;
+        for (i = 0; i < priorityFiles.length; i++) {
+          if (priorityFiles[i] && !seen[priorityFiles[i]]) {
+            seen[priorityFiles[i]] = true;
+            newQueue.push(priorityFiles[i]);
+          }
+        }
+        for (i = 0; i < cacheManager.queue.length; i++) {
+          var f = cacheManager.queue[i];
+          if (!seen[f]) {
+            seen[f] = true;
+            newQueue.push(f);
+          }
+        }
+        cacheManager.queue = newQueue;
+
+        // Oynatılacak sahne henüz önbellekte değilse arka plan indirmesini anlık duraklat ki yavaş internet bölünmesin
+        if (!cacheManager.cachedSet[activeFile] && cacheManager.running && cacheManager.currentFile && cacheManager.currentFile !== activeFile) {
+          cacheManager.reprioritized = true;
+          cacheManager.deferUntil = Date.now() + 5500;
+          if (cacheManager.abortCtrl) {
+            try { cacheManager.abortCtrl.abort(); } catch (e) {}
+          }
+        }
+      }
+
+      function sleepMs(ms) {
+        return new Promise(function (resolve) { setTimeout(resolve, ms); });
+      }
+
+      async function runOfflineCachingQueue() {
+        if (!cacheManager.supported || cacheManager.running || cacheManager.stoppedByUser) return;
+        cacheManager.running = true;
+
+        try {
+          if (navigator.storage && navigator.storage.persist) {
+            navigator.storage.persist().catch(function () {});
+          }
+
+          var cache = await syncCachedSetFromStorage();
+          updateOfflineCacheUI();
+
+          var coreFiles = ['./', './index.html', './aframe.min.js', './manifest.json'];
+          for (var c = 0; c < coreFiles.length; c++) {
+            try {
+              var coreUrl = resolveAssetUrl(coreFiles[c]);
+              var coreHit = await cache.match(coreUrl, { ignoreSearch: true });
+              if (!coreHit) {
+                var coreResp = await fetch(coreUrl);
+                if (coreResp && coreResp.ok && coreResp.status === 200) {
+                  await cache.put(coreUrl, coreResp);
+                }
+              }
+            } catch (e) {}
+          }
+
+          var failCounts = {};
+          while (!cacheManager.stoppedByUser) {
+            while (!cacheManager.stoppedByUser && cacheManager.deferUntil > Date.now()) {
+              await sleepMs(400);
+            }
+            if (cacheManager.stoppedByUser) break;
+
+            var nextFile = null;
+            for (var i = 0; i < cacheManager.queue.length; i++) {
+              var candidate = cacheManager.queue[i];
+              if (!cacheManager.cachedSet[candidate] && (failCounts[candidate] || 0) < 3) {
+                nextFile = candidate;
+                break;
+              }
+            }
+
+            if (!nextFile) break;
+
+            cacheManager.currentFile = nextFile;
+            cacheManager.reprioritized = false;
+            cacheManager.abortCtrl = new AbortController();
+            updateOfflineCacheUI();
+
+            try {
+              var targetUrl = resolveAssetUrl(nextFile);
+              var existing = await cache.match(targetUrl, { ignoreSearch: true });
+              if (existing) {
+                cacheManager.cachedSet[nextFile] = true;
+              } else {
+                var resp = await fetch(targetUrl, { signal: cacheManager.abortCtrl.signal });
+                if (resp && resp.ok && resp.status === 200) {
+                  await cache.put(targetUrl, resp);
+                  cacheManager.cachedSet[nextFile] = true;
+                } else {
+                  failCounts[nextFile] = (failCounts[nextFile] || 0) + 1;
+                  await sleepMs(2000);
+                }
+              }
+
+              if (nextFile === '00_A_ANA_MENU_GIRIS.mp4') {
+                var vidLoop = document.getElementById('vid-loop');
+                if (vidLoop && vidLoop.preload === 'none') {
+                  vidLoop.preload = 'auto';
+                }
+              }
+            } catch (err) {
+              if (cacheManager.stoppedByUser) break;
+              if (!cacheManager.reprioritized) {
+                failCounts[nextFile] = (failCounts[nextFile] || 0) + 1;
+                await sleepMs(2500);
+              }
+            } finally {
+              cacheManager.currentFile = null;
+              cacheManager.abortCtrl = null;
+            }
+
+            updateOfflineCacheUI();
+          }
+        } catch (outerErr) {
+          console.log('Önbellek kuyruğu uyarısı:', outerErr);
+        } finally {
+          cacheManager.running = false;
+          cacheManager.currentFile = null;
+          cacheManager.abortCtrl = null;
+          if (!cacheManager.stoppedByUser) {
+            updateOfflineCacheUI();
+          }
+        }
+      }
+
+      async function clearOfflineCache() {
+        if (!cacheManager.supported) return;
+        cacheManager.stoppedByUser = true;
+        if (cacheManager.abortCtrl) {
+          try { cacheManager.abortCtrl.abort(); } catch (e) {}
+        }
+
+        try {
+          var keys = await caches.keys();
+          for (var i = 0; i < keys.length; i++) {
+            if (keys[i].indexOf('cinaralti-vr-') === 0) {
+              await caches.delete(keys[i]);
+            }
+          }
+        } catch (e) {
+          console.log('Önbellek silme hatası:', e);
+        }
+
+        cacheManager.cachedSet = {};
+        cacheManager.running = false;
+        updateOfflineCacheUI('🗑️ Önbellek temizlendi (0 / ' + cacheManager.queue.length + ' video)');
+      }
+
+      function startOfflineCache() {
+        if (!cacheManager.supported) return;
+        cacheManager.stoppedByUser = false;
+        updateOfflineCacheUI();
+        runOfflineCachingQueue();
+      }
+
+      async function initOfflineCacheSystem() {
+        if (window.location.protocol === 'file:' || !('caches' in window) || !('serviceWorker' in navigator)) {
+          cacheManager.supported = false;
+          updateOfflineCacheUI();
+          return;
+        }
+
+        cacheManager.supported = true;
+        try {
+          await navigator.serviceWorker.register('./sw.js');
+          await syncCachedSetFromStorage();
+          updateOfflineCacheUI();
+          // Sayfa açılır açılmaz eksik videoları otomatik olarak gözlük hafızasına kaydetmeye başla
+          if (getCachedCount() < cacheManager.queue.length) {
+            runOfflineCachingQueue();
+          }
+        } catch (err) {
+          console.log('Service Worker kaydı yapılamadı:', err);
+          cacheManager.supported = false;
+          updateOfflineCacheUI();
+        }
+      }
     </script>
   </head>
 
@@ -1139,6 +1528,16 @@
         geçmişin izinde bir yolculuk
       </div>
       <button id="start-button" onclick="startExperience()">GİRİŞ YAP</button>
+
+      <!-- ÇEVRİMDIŞI GÖZÜĞE KAYIT VE ÖNBELLEK YÖNETİM KUTUSU -->
+      <div id="offline-cache-box">
+        <div id="cache-status-text">Depolama durumu kontrol ediliyor...</div>
+        <progress id="cache-progress" value="0" max="20" aria-label="Çevrimdışı video kayıt durumu"></progress>
+        <div class="cache-actions">
+          <button id="start-cache-btn" class="cache-btn" type="button" onclick="startOfflineCache()">📥 Gözlüğe Kaydet</button>
+          <button id="clear-cache-btn" class="cache-btn" type="button" onclick="clearOfflineCache()">🗑️ Önbelleği Temizle</button>
+        </div>
+      </div>
     </div>
 
     <!-- Sağ alt köşe imzası -->
@@ -1147,45 +1546,45 @@
     <a-scene cursor="rayOrigin: mouse" raycaster="objects: .clickable">
 
       <a-assets timeout="8000">
-        <!-- Merkez (Hub) 1. Video: Karşılama konuşması (Sadece ilk girişte 1 kez oynar) -->
+        <!-- Merkez (Hub) 1. Video: Karşılama konuşması (İlk girişte tüm bant genişliği buna ayrılır) -->
         <video id="vid-intro" src="00_A_ANA_MENU_GIRIS.mp4" preload="auto" playsinline webkit-playsinline></video>
-        <!-- Merkez (Hub) 2. Video: Bilge Dede saz döngüsü (Menü seçimi yapılana kadar döngüde kalır) -->
-        <video id="vid-loop" src="00_B_ANA_MENU_LOOP.mp4" preload="auto" playsinline webkit-playsinline loop></video>
+        <!-- Merkez (Hub) 2. Video: Bilge Dede saz döngüsü (00_A indikten sonra veya önbellekten anında yüklenir) -->
+        <video id="vid-loop" src="00_B_ANA_MENU_LOOP.mp4" preload="none" playsinline webkit-playsinline loop></video>
         <!-- Bölüm & Alt Sahne Oynatıcısı: Seçilen sahneyi 1 kez oynatır, tuşa basınca tekrar çalışır -->
-        <video id="vid-scene" src="01_YARDIMLASMA_ANA.mp4" preload="metadata" playsinline webkit-playsinline></video>
+        <video id="vid-scene" src="01_YARDIMLASMA_ANA.mp4" preload="none" playsinline webkit-playsinline></video>
       </a-assets>
 
-      <!-- KAMERA VE VR KONTROLCÜLERİ -->
+      <!-- KAMERA VE VR KONTROLCÜLERİ (fov=92 ile masaüstünde ferah görüş açısı) -->
       <a-entity id="camera-rig">
-        <a-camera position="0 1.6 0"></a-camera>
+        <a-camera position="0 1.6 0" fov="92"></a-camera>
         <a-entity laser-controls="hand: left" raycaster="objects: .clickable; far: 20"></a-entity>
         <a-entity laser-controls="hand: right" raycaster="objects: .clickable; far: 20"></a-entity>
       </a-entity>
 
       <a-light type="ambient" color="#FFFFFF" intensity="1.0"></a-light>
 
-      <!-- 360° VİDEO KÜRELERİ (00_A ve 00_B videolarında Bilge Dede tam merkeze hizalı) -->
-      <a-videosphere id="sphere-intro" src="#vid-intro" radius="100" rotation="0 -68 0" visible="true"></a-videosphere>
-      <a-videosphere id="sphere-loop" src="#vid-loop" radius="100" rotation="0 -114 0" visible="false"></a-videosphere>
-      <a-videosphere id="sphere-scene" src="#vid-scene" radius="100" rotation="0 -90 0" visible="false"></a-videosphere>
+      <!-- 360° VİDEO KÜRELERİ (position="0 1.6 -24" ile hem Meta Quest 3 VR'da hem masaüstünde karşı sahne %24 daha uzakta ve ferah durur) -->
+      <a-videosphere id="sphere-intro" src="#vid-intro" radius="100" position="0 1.6 -24" rotation="0 -68 0" visible="true"></a-videosphere>
+      <a-videosphere id="sphere-loop" src="#vid-loop" radius="100" position="0 1.6 -24" rotation="0 -114 0" visible="false"></a-videosphere>
+      <a-videosphere id="sphere-scene" src="#vid-scene" radius="100" position="0 1.6 -24" rotation="0 -90 0" visible="false"></a-videosphere>
 
       <!-- ===============================================================
-           ANA MENÜ (HUB) - BİLGE DEDE'Yİ ORTADA TAMAMEN AÇIK BIRAKAN GENİŞ KANAT DÜZENİ
+           ANA MENÜ (HUB) - BİLGE DEDE'Yİ ORTADA TAMAMEN AÇIK BIRAKAN FERAH KANAT DÜZENİ
            =============================================================== -->
       <a-entity id="hub-entities" position="0 0 0">
 
-        <!-- Üst Başlık (Çınar yaprakları hizasında, Bilge Dede ve kartlarla çakışmaz) -->
-        <a-plane width="3.5" height="0.56" position="0 4.32 -4.4" rotation="18 0 0" material="shader: flat; transparent: true" hub-header-canvas></a-plane>
+        <!-- Üst Başlık (Çınar yaprakları hizasında, rahat VR okuma derinliğinde) -->
+        <a-plane width="3.8" height="0.61" position="0 4.55 -5.0" rotation="18 0 0" material="shader: flat; transparent: true" hub-header-canvas></a-plane>
 
         <!-- SOL KANAT (01, 02, 03) -->
-        <a-plane class="clickable" width="1.88" height="0.68" position="-3.55 2.82 -4.05" rotation="8 34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 0"></a-plane>
-        <a-plane class="clickable" width="1.88" height="0.68" position="-3.65 1.94 -4.05" rotation="2 34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 1"></a-plane>
-        <a-plane class="clickable" width="1.88" height="0.68" position="-3.55 1.06 -4.05" rotation="-4 34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 2"></a-plane>
+        <a-plane class="clickable" width="2.02" height="0.73" position="-3.85 2.94 -4.65" rotation="8 34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 0"></a-plane>
+        <a-plane class="clickable" width="2.02" height="0.73" position="-3.95 1.98 -4.65" rotation="2 34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 1"></a-plane>
+        <a-plane class="clickable" width="2.02" height="0.73" position="-3.85 1.02 -4.65" rotation="-4 34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 2"></a-plane>
 
         <!-- SAĞ KANAT (04, 05, 06) -->
-        <a-plane class="clickable" width="1.88" height="0.68" position="3.55 2.82 -4.05" rotation="8 -34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 3"></a-plane>
-        <a-plane class="clickable" width="1.88" height="0.68" position="3.65 1.94 -4.05" rotation="2 -34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 4"></a-plane>
-        <a-plane class="clickable" width="1.88" height="0.68" position="3.55 1.06 -4.05" rotation="-4 -34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 5"></a-plane>
+        <a-plane class="clickable" width="2.02" height="0.73" position="3.85 2.94 -4.65" rotation="8 -34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 3"></a-plane>
+        <a-plane class="clickable" width="2.02" height="0.73" position="3.95 1.98 -4.65" rotation="2 -34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 4"></a-plane>
+        <a-plane class="clickable" width="2.02" height="0.73" position="3.85 1.02 -4.65" rotation="-4 -34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 5"></a-plane>
 
       </a-entity>
 

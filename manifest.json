@@ -1,0 +1,20 @@
+{
+  "name": "Değerler Eğitimi: Çınaraltı Hatıraları (360° VR)",
+  "short_name": "Çınaraltı VR",
+  "description": "Asırlık çınarın gölgesinde kültürel ve insani değerlerimize 360° sanal gerçeklik yolculuğu.",
+  "lang": "tr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#050505",
+  "theme_color": "#e5b869",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%2312100e'/%3E%3Ccircle cx='96' cy='96' r='68' fill='none' stroke='%23e5b869' stroke-width='8'/%3E%3Ctext x='96' y='112' font-family='Segoe UI,sans-serif' font-size='52' font-weight='700' fill='%23e5b869' text-anchor='middle'%3E360%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
