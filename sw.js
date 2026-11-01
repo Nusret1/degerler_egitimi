@@ -1,9 +1,12 @@
 /* =====================================================================
-   DEĞERLER EĞİTİMİ: ÇINARALTI HATIRALARI - ÇEVRİMDIŞI ÖNBELLEK (SERVICE WORKER)
-   Meta Quest 3 & Masaüstü Tarayıcılar için HTTP 206 Range Destekli Video Önbelleği
+   DEĞERLER EĞİTİMİ: ÇINARALTI HATIRALARI - UYGULAMA KABUĞU SERVICE WORKER (v2)
+   Not: .mp4 video akışlarına ASLA müdahale etmez (tarayıcı doğal HTTP 206 Range
+   motorunu kullanır); çevrimdışı video oynatma index.html içinde doğrudan
+   Cache Storage -> disk-tabanlı Blob URL üzerinden sıfır gecikmeyle yapılır.
    ===================================================================== */
 
-const CACHE_NAME = 'cinaralti-vr-v1';
+const SHELL_CACHE_NAME = 'cinaralti-vr-shell-v2';
+const VIDEO_CACHE_NAME = 'cinaralti-vr-videos-v2';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -13,7 +16,7 @@ const CORE_ASSETS = [
 
 self.addEventListener('install', function (event) {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(function (cache) {
+    caches.open(SHELL_CACHE_NAME).then(function (cache) {
       return cache.addAll(CORE_ASSETS);
     }).then(function () {
       return self.skipWaiting();
@@ -23,60 +26,41 @@ self.addEventListener('install', function (event) {
 
 self.addEventListener('activate', function (event) {
   event.waitUntil(
-    caches.keys().then(function (keys) {
-      return Promise.all(
-        keys.map(function (key) {
-          if (key.indexOf('cinaralti-vr-') === 0 && key !== CACHE_NAME) {
-            return caches.delete(key);
+    (async function () {
+      const keys = await caches.keys();
+      let hadLegacyV1 = false;
+
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        if (key === 'cinaralti-vr-v1') {
+          hadLegacyV1 = true;
+        }
+        if (
+          key.indexOf('cinaralti-vr-') === 0 &&
+          key !== SHELL_CACHE_NAME &&
+          key !== VIDEO_CACHE_NAME
+        ) {
+          await caches.delete(key);
+        }
+      }
+
+      await self.clients.claim();
+
+      // Eski v1 önbelleğinden geçiş yapan sekmeleri tek seferlik otomatik yenileyerek yeni arayüze geçir
+      if (hadLegacyV1) {
+        const windowClients = await self.clients.matchAll({ type: 'window' });
+        for (let c = 0; c < windowClients.length; c++) {
+          const client = windowClients[c];
+          if (client && typeof client.navigate === 'function') {
+            try {
+              await client.navigate(client.url);
+            } catch (e) {}
           }
-          return Promise.resolve();
-        })
-      );
-    }).then(function () {
-      return self.clients.claim();
-    })
+        }
+      }
+    })()
   );
 });
-
-async function buildRangeResponse(request, cachedResponse) {
-  const rangeHeader = request.headers.get('range');
-  if (!rangeHeader) {
-    return cachedResponse;
-  }
-
-  const match = /^bytes=(\d+)-(\d*)$/i.exec(rangeHeader.trim());
-  if (!match) {
-    return cachedResponse;
-  }
-
-  const buffer = await cachedResponse.arrayBuffer();
-  const total = buffer.byteLength;
-  const start = parseInt(match[1], 10);
-  const requestedEnd = match[2] ? parseInt(match[2], 10) : total - 1;
-  const end = Math.min(requestedEnd, total - 1);
-
-  if (isNaN(start) || start >= total || start > end) {
-    return new Response(null, {
-      status: 416,
-      statusText: 'Requested Range Not Satisfiable',
-      headers: {
-        'Content-Range': 'bytes */' + total
-      }
-    });
-  }
-
-  const sliced = buffer.slice(start, end + 1);
-  return new Response(sliced, {
-    status: 206,
-    statusText: 'Partial Content',
-    headers: {
-      'Content-Type': cachedResponse.headers.get('Content-Type') || 'video/mp4',
-      'Content-Range': 'bytes ' + start + '-' + end + '/' + total,
-      'Content-Length': String(sliced.byteLength),
-      'Accept-Ranges': 'bytes'
-    }
-  });
-}
 
 self.addEventListener('fetch', function (event) {
   const request = event.request;
@@ -85,40 +69,50 @@ self.addEventListener('fetch', function (event) {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  const isNavigation = request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
+  // KRİTİK: .mp4 isteklerine ve arka plan önbellek indirmelerine müdahale etme!
+  // Tarayıcının yerleşik C++ medya motoru HTTP 206 Range isteklerini doğrudan yönetir.
+  if (url.pathname.toLowerCase().endsWith('.mp4') || url.searchParams.has('bgcache')) {
+    return;
+  }
+
+  const isNavigation =
+    request.mode === 'navigate' ||
+    url.pathname.endsWith('/') ||
+    url.pathname.endsWith('/index.html');
 
   if (isNavigation) {
-    // Sayfa kabuğu: Önbellekten anında aç, internet varsa arka planda sessizce güncelle
+    // Ağ-Öncelikli (Network-First): İnternet varken en güncel sayfayı getir, çevrimdışıysa önbellekten aç
     event.respondWith(
-      caches.open(CACHE_NAME).then(async function (cache) {
-        const cached = (await cache.match('./index.html', { ignoreSearch: true })) ||
-                       (await cache.match('./', { ignoreSearch: true })) ||
-                       (await cache.match(request, { ignoreSearch: true }));
-
-        const networkPromise = fetch(request).then(function (networkResp) {
+      caches.open(SHELL_CACHE_NAME).then(async function (cache) {
+        try {
+          const networkResp = await fetch(request, { cache: 'no-cache' });
           if (networkResp && networkResp.ok && networkResp.status === 200) {
             cache.put('./index.html', networkResp.clone());
           }
           return networkResp;
-        }).catch(function () {
-          return cached;
-        });
-
-        return cached || networkPromise;
+        } catch (err) {
+          const cached =
+            (await cache.match('./index.html', { ignoreSearch: true })) ||
+            (await cache.match('./', { ignoreSearch: true })) ||
+            (await cache.match(request, { ignoreSearch: true }));
+          if (cached) return cached;
+          throw err;
+        }
       })
     );
     return;
   }
 
-  // Videolar (.mp4) ve aframe.min.js: Önbellekte varsa interneti hiç kullanmadan 0 ms'de (Range destekli) sun
+  // Uygulama kabuğu dosyaları (aframe.min.js, manifest.json): Önbellek-Öncelikli
   event.respondWith(
-    caches.open(CACHE_NAME).then(async function (cache) {
-      const cleanUrl = url.origin + url.pathname;
-      const cached = await cache.match(cleanUrl, { ignoreSearch: true });
-      if (cached) {
-        return buildRangeResponse(request, cached);
+    caches.open(SHELL_CACHE_NAME).then(async function (cache) {
+      const cached = await cache.match(request, { ignoreSearch: true });
+      if (cached) return cached;
+      const networkResp = await fetch(request);
+      if (networkResp && networkResp.ok && networkResp.status === 200) {
+        cache.put(request, networkResp.clone());
       }
-      return fetch(request);
+      return networkResp;
     })
   );
 });

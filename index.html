@@ -101,29 +101,53 @@
 
       #cache-progress {
         width: 100%;
-        height: 7px;
+        height: 8px;
         appearance: none;
         -webkit-appearance: none;
-        border: none;
+        border: 0 solid;
         border-radius: 999px;
-        overflow: hidden;
-        background-color: rgba(255, 255, 255, 0.12);
+        overflow: clip;
+        container-type: inline-size;
+        background: rgba(255, 255, 255, 0.14);
+        --progress-bar-indeterminate-size: 32%;
+        --progress-bar-indeterminate-animation-duration: 1.4s;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #cache-progress {
+          --progress-bar-indeterminate-animation-duration: 10s;
+        }
+      }
+
+      #cache-progress:indeterminate {
+        --progress-bar-animation: progress-bar-indeterminate var(--progress-bar-indeterminate-animation-duration) infinite linear;
       }
 
       #cache-progress::-webkit-progress-bar {
-        background-color: rgba(255, 255, 255, 0.12);
-        border-radius: 999px;
+        background: transparent;
       }
 
       #cache-progress::-webkit-progress-value {
         background: linear-gradient(90deg, #c99846, #f0c97d);
         border-radius: 999px;
-        transition: width 0.25s ease;
+        transition: inline-size 0.2s linear;
+        animation: var(--progress-bar-animation, revert-rule);
       }
 
       #cache-progress::-moz-progress-bar {
         background: linear-gradient(90deg, #c99846, #f0c97d);
         border-radius: 999px;
+        transition: inline-size 0.2s linear;
+        animation: var(--progress-bar-animation, revert-rule);
+      }
+
+      @keyframes progress-bar-indeterminate {
+        from, to {
+          inline-size: var(--progress-bar-indeterminate-size);
+          margin-right: auto;
+        }
+        from { translate: -100%; }
+        to { translate: 100cqi; }
       }
 
       .cache-actions {
@@ -165,18 +189,6 @@
         background: rgba(220, 76, 60, 0.2);
         border-color: rgba(231, 76, 60, 0.55);
         color: #ffd6d1;
-      }
-
-      #signature {
-        position: fixed;
-        bottom: 10px;
-        right: 15px;
-        color: rgba(255, 255, 255, 0.28);
-        font-family: 'Segoe UI', sans-serif;
-        font-size: 11px;
-        z-index: 9998;
-        pointer-events: none;
-        letter-spacing: 1px;
       }
 
       .a-enter-vr {
@@ -468,12 +480,42 @@
       /* =====================================================================
          VİDEO VE SAHNE YÖNETİMİ
          ===================================================================== */
+      function applyPreferredVideoSource(videoEl, fileName) {
+        if (!videoEl || !fileName) return;
+        var cachedBlobUrl = (typeof cacheManager !== 'undefined' && cacheManager.blobUrls && cacheManager.blobUrls[fileName])
+          ? cacheManager.blobUrls[fileName]
+          : null;
+        var nextSrc = cachedBlobUrl || fileName;
+        var nextKind = cachedBlobUrl ? 'blob' : 'net';
+
+        if (
+          videoEl.getAttribute('data-file') === fileName &&
+          videoEl.getAttribute('data-src-kind') === nextKind &&
+          (videoEl.currentSrc || videoEl.getAttribute('src'))
+        ) {
+          if (videoEl.preload === 'none') {
+            videoEl.preload = 'auto';
+          }
+          if (videoEl.readyState > 0) {
+            try { videoEl.currentTime = 0; } catch (e) {}
+          } else {
+            videoEl.load();
+          }
+          return;
+        }
+
+        videoEl.preload = 'auto';
+        videoEl.setAttribute('data-file', fileName);
+        videoEl.setAttribute('data-src-kind', nextKind);
+        videoEl.src = nextSrc;
+        videoEl.load();
+      }
+
       function startExperience() {
         if (appState.mode !== 'idle') return;
 
         var vidIntro = document.getElementById('vid-intro');
         var vidLoop = document.getElementById('vid-loop');
-        var vidScene = document.getElementById('vid-scene');
 
         var sphereIntro = document.getElementById('sphere-intro');
         var sphereLoop = document.getElementById('sphere-loop');
@@ -482,41 +524,24 @@
         appState.mode = 'hub';
         document.getElementById('start-screen').style.display = 'none';
 
-        // VR kontrolcüsü (WebXR) tıklamalarında sesli oynatma izni için
-        // döngü ve sahne oynatıcılarını sessizce kilitten çıkarıyoruz.
-        [vidLoop, vidScene].forEach(function (v) {
-          v.muted = true;
-          var p = v.play();
-          if (p && p.then) {
-            p.then(function () {
-              if (v === vidScene && appState.mode === 'scene') {
-                v.muted = false;
-                return;
-              }
-              if (v === vidLoop && appState.mode === 'hub' && sphereLoop.getAttribute('visible') === true) {
-                v.muted = false;
-                return;
-              }
-              v.pause();
-              v.currentTime = 0;
-              v.muted = false;
-            }).catch(function () {
-              v.muted = false;
-            });
-          } else {
-            v.pause();
-            v.muted = false;
-          }
-        });
+        // 00_A henüz önbellekte değilse arka plan indirmesini beklet ki tüm Wi-Fi hızı anında oynatmaya ayrılsın
+        if (typeof pauseBackgroundCacheForActiveVideo === 'function') {
+          pauseBackgroundCacheForActiveVideo('00_A_ANA_MENU_GIRIS.mp4');
+        }
+
+        // 00_B halihazırda önbellekteyse yerel disk Blob kaynağını hazır tut (ağ trafiği harcamaz)
+        if (typeof cacheManager !== 'undefined' && cacheManager.blobUrls && cacheManager.blobUrls['00_B_ANA_MENU_LOOP.mp4']) {
+          applyPreferredVideoSource(vidLoop, '00_B_ANA_MENU_LOOP.mp4');
+        }
 
         // İlk girişte 00_A (Bilge Dede karşılama konuşması) 1 kez oynar
         sphereLoop.setAttribute('visible', 'false');
         sphereScene.setAttribute('visible', 'false');
         sphereIntro.setAttribute('visible', 'true');
 
+        applyPreferredVideoSource(vidIntro, '00_A_ANA_MENU_GIRIS.mp4');
         vidIntro.loop = false;
         vidIntro.muted = false;
-        vidIntro.currentTime = 0;
         vidIntro.play().catch(function (err) {
           console.log('Giriş videosu başlatılamadı, döngü videosuna geçiliyor:', err);
           activateHubLoop();
@@ -533,6 +558,12 @@
         var sphereScene = document.getElementById('sphere-scene');
 
         vidIntro.pause();
+
+        if (typeof pauseBackgroundCacheForActiveVideo === 'function') {
+          pauseBackgroundCacheForActiveVideo('00_B_ANA_MENU_LOOP.mp4');
+        }
+
+        applyPreferredVideoSource(vidLoop, '00_B_ANA_MENU_LOOP.mp4');
         vidLoop.loop = true;
         vidLoop.muted = false;
 
@@ -587,18 +618,11 @@
         sphereLoop.setAttribute('visible', 'false');
         sphereScene.setAttribute('visible', 'true');
 
-        // Seçilen sahne videosunu yükle ve 1 kez oynat (döngü kapalı)
+        // Seçilen sahne videosunu yükle (önbellekteyse disk Blob'undan 0 ms'de, değilse ağdan) ve 1 kez oynat
         vidScene.pause();
         vidScene.loop = false;
         vidScene.muted = false;
-
-        if (vidScene.getAttribute('data-file') !== sceneData.file) {
-          vidScene.setAttribute('data-file', sceneData.file);
-          vidScene.src = sceneData.file;
-          vidScene.load();
-        } else {
-          vidScene.currentTime = 0;
-        }
+        applyPreferredVideoSource(vidScene, sceneData.file);
 
         vidScene.play().catch(function (e) { console.log('Sahne oynatma hatası:', e); });
       }
@@ -1181,37 +1205,70 @@
         document.addEventListener('webkitfullscreenchange', onFullscreenResize);
 
         var vidIntro = document.getElementById('vid-intro');
+        var vidLoop = document.getElementById('vid-loop');
         var vidScene = document.getElementById('vid-scene');
+        var sphereIntro = document.getElementById('sphere-intro');
+        var sphereLoop = document.getElementById('sphere-loop');
         var sphereScene = document.getElementById('sphere-scene');
-        var lastSceneW = 0;
-        var lastSceneH = 0;
+
+        // Video kaynağı (ağ veya yerel Blob) ya da çözünürlük değiştiğinde Three.js VideoTexture dokusunu güvenle bağla
+        function bindReliableVideoTexture(videoEl, sphereEl) {
+          var lastW = 0;
+          var lastH = 0;
+          var lastSrc = '';
+
+          function refreshTexture() {
+            var mesh = sphereEl.getObject3D('mesh');
+            if (!mesh || !mesh.material) return;
+            var vw = videoEl.videoWidth || 0;
+            var vh = videoEl.videoHeight || 0;
+            var curSrc = videoEl.currentSrc || videoEl.src || '';
+            if (vw === 0 || vh === 0) return;
+
+            if (
+              !mesh.material.map ||
+              !mesh.material.map.isVideoTexture ||
+              vw !== lastW ||
+              vh !== lastH ||
+              curSrc !== lastSrc
+            ) {
+              lastW = vw;
+              lastH = vh;
+              lastSrc = curSrc;
+              var prevMap = mesh.material.map;
+              var freshTex = new THREE.VideoTexture(videoEl);
+              freshTex.minFilter = THREE.LinearFilter;
+              freshTex.magFilter = THREE.LinearFilter;
+              if (prevMap && prevMap.encoding) {
+                freshTex.encoding = prevMap.encoding;
+              }
+              freshTex.needsUpdate = true;
+              mesh.material.map = freshTex;
+              mesh.material.needsUpdate = true;
+              if (prevMap && prevMap !== freshTex && typeof prevMap.dispose === 'function') {
+                try { prevMap.dispose(); } catch (e) {}
+              }
+            } else {
+              mesh.material.map.needsUpdate = true;
+            }
+          }
+
+          videoEl.addEventListener('loadedmetadata', refreshTexture);
+          videoEl.addEventListener('loadeddata', refreshTexture);
+          videoEl.addEventListener('canplay', refreshTexture);
+          videoEl.addEventListener('playing', refreshTexture);
+          sphereEl.addEventListener('object3dset', function (evt) {
+            if (evt.detail && evt.detail.type === 'mesh') refreshTexture();
+          });
+        }
+
+        bindReliableVideoTexture(vidIntro, sphereIntro);
+        bindReliableVideoTexture(vidLoop, sphereLoop);
+        bindReliableVideoTexture(vidScene, sphereScene);
 
         // 00_A karşılama videosu bittiği anda kesintisiz 00_B döngü videosuna geç
         vidIntro.addEventListener('ended', function () {
           activateHubLoop();
-        });
-
-        // Sahne videosunun çözünürlüğü değiştiğinde GPU dokusunu güvenle yenile
-        vidScene.addEventListener('loadeddata', function () {
-          var mesh = sphereScene.getObject3D('mesh');
-          if (!mesh || !mesh.material) return;
-          var vw = vidScene.videoWidth || 0;
-          var vh = vidScene.videoHeight || 0;
-          if (!mesh.material.map || (vw > 0 && (vw !== lastSceneW || vh !== lastSceneH))) {
-            lastSceneW = vw;
-            lastSceneH = vh;
-            if (mesh.material.map) {
-              mesh.material.map.dispose();
-            }
-            var freshTex = new THREE.VideoTexture(vidScene);
-            freshTex.minFilter = THREE.LinearFilter;
-            freshTex.magFilter = THREE.LinearFilter;
-            freshTex.needsUpdate = true;
-            mesh.material.map = freshTex;
-            mesh.material.needsUpdate = true;
-          } else if (mesh.material.map) {
-            mesh.material.map.needsUpdate = true;
-          }
         });
 
         // Bölüm videosu bittiğinde durur; "Tekrar Oynat" butonunu vurgular
@@ -1222,11 +1279,13 @@
           }
         });
 
-        // Sahne videosu oynatmaya hazır olduğunda arka plan önbelleklemesini hemen devam ettir
-        vidScene.addEventListener('canplaythrough', function () {
-          if (cacheManager.deferUntil > Date.now()) {
-            cacheManager.deferUntil = 0;
-          }
+        // Aktif video oynatma tamponunu doldurduğunda arka plan önbelleklemesini devam ettir
+        [vidIntro, vidLoop, vidScene].forEach(function (v) {
+          v.addEventListener('canplaythrough', function () {
+            if (cacheManager.deferUntil > Date.now()) {
+              cacheManager.deferUntil = 0;
+            }
+          });
         });
 
         initOfflineCacheSystem();
@@ -1234,9 +1293,12 @@
 
       /* =====================================================================
          ÇEVRİMDIŞI ÖNBELLEK SİSTEMİ (META QUEST 3 & TARAYICI KALICI DEPOLAMA)
-         Sayfa açılır açılmaz videoları sırayla gözlük hafızasına kaydeder
+         - Sayfa açılır açılmaz anlık bayt ilerlemesiyle (%0,1 -> %100) kaydeder
+         - Kayıtlı videoları disk-tabanlı Blob URL ile ağ kullanmadan 0 ms'de oynatır
+         - Aktif ağ videosu oynarken Wi-Fi çakışmasını önlemek için otomatik yol verir
          ===================================================================== */
-      var OFFLINE_CACHE_NAME = 'cinaralti-vr-v1';
+      var VIDEO_CACHE_NAME = 'cinaralti-vr-videos-v2';
+      var LEGACY_CACHE_NAME = 'cinaralti-vr-v1';
 
       function buildDefaultVideoPriority() {
         var list = ['00_A_ANA_MENU_GIRIS.mp4', '00_B_ANA_MENU_LOOP.mp4'];
@@ -1257,9 +1319,12 @@
         stoppedByUser: false,
         reprioritized: false,
         currentFile: null,
+        currentFileLoaded: 0,
+        currentFileTotal: 0,
         abortCtrl: null,
         deferUntil: 0,
         cachedSet: {},
+        blobUrls: {},
         queue: buildDefaultVideoPriority()
       };
 
@@ -1270,6 +1335,10 @@
 
       function getCachedCount() {
         return Object.keys(cacheManager.cachedSet).length;
+      }
+
+      function formatDecimalTR(num, digits) {
+        return Number(num).toFixed(digits).replace('.', ',');
       }
 
       function updateOfflineCacheUI(customMessage) {
@@ -1287,17 +1356,45 @@
 
         var total = cacheManager.queue.length;
         var done = getCachedCount();
-        var pct = Math.round((done / total) * 100);
-        bar.max = total;
-        bar.value = done;
+        var loadedBytes = cacheManager.currentFileLoaded || 0;
+        var totalBytes = cacheManager.currentFileTotal || 0;
+        var fileFrac = (cacheManager.running && cacheManager.currentFile && totalBytes > 0)
+          ? Math.min(0.995, loadedBytes / totalBytes)
+          : 0;
+        var effectiveDone = Math.min(total, done + fileFrac);
+        var permille = Math.min(1000, Math.round((effectiveDone / total) * 1000));
+
+        bar.max = 1000;
 
         if (customMessage) {
+          bar.value = permille;
           txt.textContent = customMessage;
         } else if (done >= total) {
-          txt.textContent = '✅ Tüm videolar gözlük hafızasında hazır (' + done + ' / ' + total + ') — Anında açılır';
+          bar.value = 1000;
+          txt.textContent = '✅ Tüm videolar gözlük hafızasında hazır (' + done + ' / ' + total + ') — İnternetsiz anında açılır';
         } else if (cacheManager.running) {
-          txt.textContent = '📥 Gözlük hafızasına kaydediliyor: ' + done + ' / ' + total + ' video (%' + pct + ')';
+          if (done === 0 && loadedBytes === 0) {
+            // İlk veri paketi gelene kadar belirsiz (indeterminate) kayan animasyon göster
+            bar.removeAttribute('value');
+            txt.textContent = '📥 Gözlük hafızasına kayıt başlatılıyor... (1 / ' + total + ' video bağlanıyor)';
+          } else {
+            var shownPermille = (permille === 0 && loadedBytes > 0) ? 1 : permille;
+            bar.value = shownPermille;
+            var overallPctText = shownPermille >= 1000 ? '100' : formatDecimalTR(shownPermille / 10, 1);
+            if (loadedBytes > 0) {
+              var filePct = totalBytes > 0 ? Math.max(1, Math.min(99, Math.round(fileFrac * 100))) : 1;
+              var mbText = formatDecimalTR(loadedBytes / (1024 * 1024), 1);
+              txt.textContent =
+                '📥 Gözlük hafızasına kaydediliyor: %' + overallPctText +
+                ' (Video ' + (done + 1) + '/' + total + ': %' + filePct + ' — ' + mbText + ' MB)';
+            } else {
+              txt.textContent =
+                '📥 Gözlük hafızasına kaydediliyor: %' + overallPctText +
+                ' (' + done + ' / ' + total + ' video tamamlandı)';
+            }
+          }
         } else {
+          bar.value = permille;
           txt.textContent = 'Çevrimdışı depolama durumu: ' + done + ' / ' + total + ' video hazır';
         }
 
@@ -1309,18 +1406,98 @@
         }
       }
 
+      async function registerCachedBlobForFile(cache, fileName) {
+        try {
+          var hit = await cache.match(resolveAssetUrl(fileName), { ignoreSearch: true });
+          if (!hit) return false;
+          var diskBlob = await hit.blob();
+          if (!diskBlob || diskBlob.size < 1024) return false;
+
+          if (cacheManager.blobUrls[fileName]) {
+            try { URL.revokeObjectURL(cacheManager.blobUrls[fileName]); } catch (e) {}
+          }
+          var blobUrl = URL.createObjectURL(diskBlob);
+          cacheManager.blobUrls[fileName] = blobUrl;
+          cacheManager.cachedSet[fileName] = true;
+
+          // Boştaki giriş / döngü videolarını anında yerel disk Blob kaynağına geçir
+          if (fileName === '00_A_ANA_MENU_GIRIS.mp4' && appState.mode === 'idle') {
+            var vidIntro = document.getElementById('vid-intro');
+            if (vidIntro) applyPreferredVideoSource(vidIntro, fileName);
+          } else if (fileName === '00_B_ANA_MENU_LOOP.mp4') {
+            var vidLoop = document.getElementById('vid-loop');
+            var sphereLoop = document.getElementById('sphere-loop');
+            var loopActive = appState.mode === 'hub' && sphereLoop && sphereLoop.getAttribute('visible') === true;
+            if (vidLoop && !loopActive) {
+              applyPreferredVideoSource(vidLoop, fileName);
+            }
+          }
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+
       async function syncCachedSetFromStorage() {
-        var cache = await caches.open(OFFLINE_CACHE_NAME);
-        var map = {};
+        try {
+          await caches.delete(LEGACY_CACHE_NAME);
+        } catch (e) {}
+
+        var cache = await caches.open(VIDEO_CACHE_NAME);
         for (var i = 0; i < cacheManager.queue.length; i++) {
           var f = cacheManager.queue[i];
-          var hit = await cache.match(resolveAssetUrl(f), { ignoreSearch: true });
-          if (hit) {
-            map[f] = true;
+          if (!cacheManager.blobUrls[f]) {
+            await registerCachedBlobForFile(cache, f);
           }
         }
-        cacheManager.cachedSet = map;
         return cache;
+      }
+
+      function pauseBackgroundCacheForActiveVideo(activeFile) {
+        if (!cacheManager.supported || !activeFile) return;
+        // Oynatılacak video zaten gözlük hafızasındaysa (Blob) internet kullanmaz; arka plan kaydını durdurmaya gerek yok
+        if (cacheManager.blobUrls[activeFile]) return;
+
+        // İndirilen dosya aynı dosya olsa bile %75'in altındaysa oynatıcıya tam Wi-Fi hızı bırakmak için ertele
+        var frac = cacheManager.currentFileTotal > 0
+          ? (cacheManager.currentFileLoaded / cacheManager.currentFileTotal)
+          : 0;
+        if (cacheManager.currentFile === activeFile && frac >= 0.75) {
+          return;
+        }
+
+        cacheManager.reprioritized = true;
+        cacheManager.deferUntil = Date.now() + 7000;
+        if (cacheManager.abortCtrl) {
+          try { cacheManager.abortCtrl.abort(); } catch (e) {}
+        }
+      }
+
+      function isActiveVideoStreamingFromNetwork() {
+        if (appState.mode === 'idle') return false;
+        var activeVid = null;
+        if (appState.mode === 'scene') {
+          activeVid = document.getElementById('vid-scene');
+        } else if (appState.mode === 'hub') {
+          var sphereIntro = document.getElementById('sphere-intro');
+          activeVid = (sphereIntro && sphereIntro.getAttribute('visible') === true)
+            ? document.getElementById('vid-intro')
+            : document.getElementById('vid-loop');
+        }
+        if (!activeVid) return false;
+        if (activeVid.getAttribute('data-src-kind') === 'blob') return false;
+        if (activeVid.paused || activeVid.ended) return false;
+
+        // Ağdan oynayan video henüz yeterli tampon (en az 12 sn veya sonuna kadar) doldurmadıysa bekle
+        try {
+          var dur = activeVid.duration;
+          if (activeVid.buffered && activeVid.buffered.length > 0) {
+            var bufEnd = activeVid.buffered.end(activeVid.buffered.length - 1);
+            if (isFinite(dur) && dur > 0 && bufEnd >= dur - 0.5) return false;
+            if (bufEnd - activeVid.currentTime >= 12) return false;
+          }
+        } catch (e) {}
+        return activeVid.readyState < 4;
       }
 
       function prioritizeChapterInCache(chapterIdx, activeFile) {
@@ -1352,51 +1529,107 @@
           }
         }
         cacheManager.queue = newQueue;
-
-        // Oynatılacak sahne henüz önbellekte değilse arka plan indirmesini anlık duraklat ki yavaş internet bölünmesin
-        if (!cacheManager.cachedSet[activeFile] && cacheManager.running && cacheManager.currentFile && cacheManager.currentFile !== activeFile) {
-          cacheManager.reprioritized = true;
-          cacheManager.deferUntil = Date.now() + 5500;
-          if (cacheManager.abortCtrl) {
-            try { cacheManager.abortCtrl.abort(); } catch (e) {}
-          }
-        }
+        pauseBackgroundCacheForActiveVideo(activeFile);
       }
 
       function sleepMs(ms) {
         return new Promise(function (resolve) { setTimeout(resolve, ms); });
       }
 
+      async function downloadVideoToCacheWithProgress(cache, fileName, signal) {
+        var cleanKey = resolveAssetUrl(fileName);
+        // ?bgcache=2 ve cache:'no-store' ile <video> Range önbellek kilidiyle çakışması %100 önlenir
+        var downloadUrl = cleanKey + '?bgcache=2';
+        var resp = await fetch(downloadUrl, {
+          cache: 'no-store',
+          signal: signal
+        });
+
+        if (!resp || !resp.ok || resp.status !== 200) {
+          throw new Error('HTTP ' + (resp ? resp.status : 0));
+        }
+
+        var expectedBytes = parseInt(resp.headers.get('Content-Length') || '0', 10) || 0;
+        cacheManager.currentFileLoaded = 0;
+        cacheManager.currentFileTotal = expectedBytes || 35000000;
+        updateOfflineCacheUI();
+
+        var finalBlob = null;
+        if (resp.body && typeof resp.body.getReader === 'function') {
+          var reader = resp.body.getReader();
+          var chunks = [];
+          var received = 0;
+          var lastUiTick = 0;
+
+          while (true) {
+            var step = await reader.read();
+            if (step.done) break;
+            if (step.value) {
+              chunks.push(step.value);
+              received += step.value.byteLength;
+              cacheManager.currentFileLoaded = received;
+              if (expectedBytes > 0) {
+                cacheManager.currentFileTotal = expectedBytes;
+              } else if (received >= cacheManager.currentFileTotal) {
+                cacheManager.currentFileTotal = Math.round(received * 1.15);
+              }
+              var now = Date.now();
+              if (now - lastUiTick >= 120) {
+                lastUiTick = now;
+                updateOfflineCacheUI();
+              }
+            }
+          }
+
+          if (received < 1024 || (expectedBytes > 0 && received !== expectedBytes)) {
+            chunks = null;
+            throw new Error('Eksik veri akışı: ' + received + '/' + expectedBytes);
+          }
+
+          finalBlob = new Blob(chunks, { type: 'video/mp4' });
+          chunks = null;
+        } else {
+          finalBlob = await resp.blob();
+          if (!finalBlob || finalBlob.size < 1024) {
+            throw new Error('Boş video yanıtı');
+          }
+          cacheManager.currentFileLoaded = finalBlob.size;
+          cacheManager.currentFileTotal = finalBlob.size;
+        }
+
+        var storedResp = new Response(finalBlob, {
+          status: 200,
+          headers: {
+            'Content-Type': 'video/mp4',
+            'Content-Length': String(finalBlob.size)
+          }
+        });
+        await cache.put(cleanKey, storedResp);
+        finalBlob = null;
+
+        // Disk tabanlı Blob URL oluştur ki RAM tüketmeden anında çevrimdışı oynatılsın
+        await registerCachedBlobForFile(cache, fileName);
+      }
+
       async function runOfflineCachingQueue() {
         if (!cacheManager.supported || cacheManager.running || cacheManager.stoppedByUser) return;
         cacheManager.running = true;
+        updateOfflineCacheUI();
 
         try {
           if (navigator.storage && navigator.storage.persist) {
             navigator.storage.persist().catch(function () {});
           }
 
-          var cache = await syncCachedSetFromStorage();
-          updateOfflineCacheUI();
-
-          var coreFiles = ['./', './index.html', './aframe.min.js', './manifest.json'];
-          for (var c = 0; c < coreFiles.length; c++) {
-            try {
-              var coreUrl = resolveAssetUrl(coreFiles[c]);
-              var coreHit = await cache.match(coreUrl, { ignoreSearch: true });
-              if (!coreHit) {
-                var coreResp = await fetch(coreUrl);
-                if (coreResp && coreResp.ok && coreResp.status === 200) {
-                  await cache.put(coreUrl, coreResp);
-                }
-              }
-            } catch (e) {}
-          }
-
+          var cache = await caches.open(VIDEO_CACHE_NAME);
           var failCounts = {};
+
           while (!cacheManager.stoppedByUser) {
-            while (!cacheManager.stoppedByUser && cacheManager.deferUntil > Date.now()) {
-              await sleepMs(400);
+            while (
+              !cacheManager.stoppedByUser &&
+              (cacheManager.deferUntil > Date.now() || isActiveVideoStreamingFromNetwork())
+            ) {
+              await sleepMs(450);
             }
             if (cacheManager.stoppedByUser) break;
 
@@ -1412,40 +1645,27 @@
             if (!nextFile) break;
 
             cacheManager.currentFile = nextFile;
+            cacheManager.currentFileLoaded = 0;
+            cacheManager.currentFileTotal = 0;
             cacheManager.reprioritized = false;
             cacheManager.abortCtrl = new AbortController();
             updateOfflineCacheUI();
 
             try {
-              var targetUrl = resolveAssetUrl(nextFile);
-              var existing = await cache.match(targetUrl, { ignoreSearch: true });
-              if (existing) {
-                cacheManager.cachedSet[nextFile] = true;
-              } else {
-                var resp = await fetch(targetUrl, { signal: cacheManager.abortCtrl.signal });
-                if (resp && resp.ok && resp.status === 200) {
-                  await cache.put(targetUrl, resp);
-                  cacheManager.cachedSet[nextFile] = true;
-                } else {
-                  failCounts[nextFile] = (failCounts[nextFile] || 0) + 1;
-                  await sleepMs(2000);
-                }
-              }
-
-              if (nextFile === '00_A_ANA_MENU_GIRIS.mp4') {
-                var vidLoop = document.getElementById('vid-loop');
-                if (vidLoop && vidLoop.preload === 'none') {
-                  vidLoop.preload = 'auto';
-                }
+              var already = await registerCachedBlobForFile(cache, nextFile);
+              if (!already) {
+                await downloadVideoToCacheWithProgress(cache, nextFile, cacheManager.abortCtrl.signal);
               }
             } catch (err) {
               if (cacheManager.stoppedByUser) break;
               if (!cacheManager.reprioritized) {
                 failCounts[nextFile] = (failCounts[nextFile] || 0) + 1;
-                await sleepMs(2500);
+                await sleepMs(1800);
               }
             } finally {
               cacheManager.currentFile = null;
+              cacheManager.currentFileLoaded = 0;
+              cacheManager.currentFileTotal = 0;
               cacheManager.abortCtrl = null;
             }
 
@@ -1456,6 +1676,8 @@
         } finally {
           cacheManager.running = false;
           cacheManager.currentFile = null;
+          cacheManager.currentFileLoaded = 0;
+          cacheManager.currentFileTotal = 0;
           cacheManager.abortCtrl = null;
           if (!cacheManager.stoppedByUser) {
             updateOfflineCacheUI();
@@ -1470,6 +1692,36 @@
           try { cacheManager.abortCtrl.abort(); } catch (e) {}
         }
 
+        // Mevcut disk Blob adreslerini serbest bırak ve video elemanlarını ağ adresine döndür
+        var files = Object.keys(cacheManager.blobUrls);
+        for (var b = 0; b < files.length; b++) {
+          try { URL.revokeObjectURL(cacheManager.blobUrls[files[b]]); } catch (e) {}
+        }
+        cacheManager.blobUrls = {};
+        cacheManager.cachedSet = {};
+
+        var vidIntro = document.getElementById('vid-intro');
+        var vidLoop = document.getElementById('vid-loop');
+        var vidScene = document.getElementById('vid-scene');
+        if (vidIntro && appState.mode === 'idle') {
+          vidIntro.setAttribute('data-file', '00_A_ANA_MENU_GIRIS.mp4');
+          vidIntro.setAttribute('data-src-kind', 'net');
+          vidIntro.preload = 'metadata';
+          vidIntro.src = '00_A_ANA_MENU_GIRIS.mp4';
+        }
+        if (vidLoop && appState.mode === 'idle') {
+          vidLoop.setAttribute('data-file', '00_B_ANA_MENU_LOOP.mp4');
+          vidLoop.setAttribute('data-src-kind', 'net');
+          vidLoop.preload = 'metadata';
+          vidLoop.src = '00_B_ANA_MENU_LOOP.mp4';
+        }
+        if (vidScene && appState.mode === 'idle') {
+          vidScene.setAttribute('data-file', '01_YARDIMLASMA_ANA.mp4');
+          vidScene.setAttribute('data-src-kind', 'net');
+          vidScene.preload = 'none';
+          vidScene.src = '01_YARDIMLASMA_ANA.mp4';
+        }
+
         try {
           var keys = await caches.keys();
           for (var i = 0; i < keys.length; i++) {
@@ -1481,7 +1733,6 @@
           console.log('Önbellek silme hatası:', e);
         }
 
-        cacheManager.cachedSet = {};
         cacheManager.running = false;
         updateOfflineCacheUI('🗑️ Önbellek temizlendi (0 / ' + cacheManager.queue.length + ' video)');
       }
@@ -1494,23 +1745,34 @@
       }
 
       async function initOfflineCacheSystem() {
-        if (window.location.protocol === 'file:' || !('caches' in window) || !('serviceWorker' in navigator)) {
+        if (window.location.protocol === 'file:' || !('caches' in window)) {
           cacheManager.supported = false;
           updateOfflineCacheUI();
           return;
         }
 
         cacheManager.supported = true;
+
+        // Uygulama kabuğu Service Worker kaydını arka planda bloklamadan başlat ve güncelle
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('./sw.js').then(function (reg) {
+            if (reg && typeof reg.update === 'function') {
+              reg.update().catch(function () {});
+            }
+          }).catch(function (swErr) {
+            console.log('Uygulama kabuğu SW notu:', swErr);
+          });
+        }
+
         try {
-          await navigator.serviceWorker.register('./sw.js');
           await syncCachedSetFromStorage();
           updateOfflineCacheUI();
-          // Sayfa açılır açılmaz eksik videoları otomatik olarak gözlük hafızasına kaydetmeye başla
+          // Sayfa açılır açılmaz eksik videoları otomatik olarak anlık yüzdeyle gözlük hafızasına kaydet
           if (getCachedCount() < cacheManager.queue.length) {
             runOfflineCachingQueue();
           }
         } catch (err) {
-          console.log('Service Worker kaydı yapılamadı:', err);
+          console.log('Önbellek başlatma hatası:', err);
           cacheManager.supported = false;
           updateOfflineCacheUI();
         }
@@ -1529,10 +1791,10 @@
       </div>
       <button id="start-button" onclick="startExperience()">GİRİŞ YAP</button>
 
-      <!-- ÇEVRİMDIŞI GÖZÜĞE KAYIT VE ÖNBELLEK YÖNETİM KUTUSU -->
+      <!-- ÇEVRİMDIŞI GÖZLÜĞE KAYIT VE ÖNBELLEK YÖNETİM KUTUSU -->
       <div id="offline-cache-box">
-        <div id="cache-status-text">Depolama durumu kontrol ediliyor...</div>
-        <progress id="cache-progress" value="0" max="20" aria-label="Çevrimdışı video kayıt durumu"></progress>
+        <div id="cache-status-text" role="status" aria-live="polite">Depolama durumu kontrol ediliyor...</div>
+        <progress id="cache-progress" max="1000" aria-labelledby="cache-status-text"></progress>
         <div class="cache-actions">
           <button id="start-cache-btn" class="cache-btn" type="button" onclick="startOfflineCache()">📥 Gözlüğe Kaydet</button>
           <button id="clear-cache-btn" class="cache-btn" type="button" onclick="clearOfflineCache()">🗑️ Önbelleği Temizle</button>
@@ -1540,19 +1802,14 @@
       </div>
     </div>
 
-    <!-- Sağ alt köşe imzası -->
-    <div id="signature">by Nesretullah SATAR</div>
+    <!-- 360° VİDEO HAVUZU (<a-assets> dışındadır; sahne açılışını 8 sn bekletmez ve ağ çakışması yaratmaz) -->
+    <div id="video-pool" style="display: none;" aria-hidden="true">
+      <video id="vid-intro" src="00_A_ANA_MENU_GIRIS.mp4" data-file="00_A_ANA_MENU_GIRIS.mp4" data-src-kind="net" preload="metadata" playsinline webkit-playsinline></video>
+      <video id="vid-loop" src="00_B_ANA_MENU_LOOP.mp4" data-file="00_B_ANA_MENU_LOOP.mp4" data-src-kind="net" preload="metadata" playsinline webkit-playsinline loop></video>
+      <video id="vid-scene" src="01_YARDIMLASMA_ANA.mp4" data-file="01_YARDIMLASMA_ANA.mp4" data-src-kind="net" preload="none" playsinline webkit-playsinline></video>
+    </div>
 
     <a-scene cursor="rayOrigin: mouse" raycaster="objects: .clickable">
-
-      <a-assets timeout="8000">
-        <!-- Merkez (Hub) 1. Video: Karşılama konuşması (İlk girişte tüm bant genişliği buna ayrılır) -->
-        <video id="vid-intro" src="00_A_ANA_MENU_GIRIS.mp4" preload="auto" playsinline webkit-playsinline></video>
-        <!-- Merkez (Hub) 2. Video: Bilge Dede saz döngüsü (00_A indikten sonra veya önbellekten anında yüklenir) -->
-        <video id="vid-loop" src="00_B_ANA_MENU_LOOP.mp4" preload="none" playsinline webkit-playsinline loop></video>
-        <!-- Bölüm & Alt Sahne Oynatıcısı: Seçilen sahneyi 1 kez oynatır, tuşa basınca tekrar çalışır -->
-        <video id="vid-scene" src="01_YARDIMLASMA_ANA.mp4" preload="none" playsinline webkit-playsinline></video>
-      </a-assets>
 
       <!-- KAMERA VE VR KONTROLCÜLERİ (fov=92 ile masaüstünde ferah görüş açısı) -->
       <a-entity id="camera-rig">
