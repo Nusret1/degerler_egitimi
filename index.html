@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Değerler Eğitimi: Çınaraltı Hatıraları (360° VR)</title>
+    <script src="aframe.min.js"></script>
+
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; overflow: hidden; background-color: #050505; }
+
+      #start-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at center, rgba(24, 20, 16, 0.97) 0%, rgba(5, 5, 5, 0.99) 100%);
+        color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        text-align: center;
+        padding: 24px;
+      }
+
+      .badge-top {
+        font-size: 12px;
+        letter-spacing: 3px;
+        color: #e5b869;
+        text-transform: uppercase;
+        margin-bottom: 14px;
+        padding: 6px 16px;
+        border: 1px solid rgba(229, 184, 105, 0.35);
+        border-radius: 999px;
+        background: rgba(229, 184, 105, 0.08);
+      }
+
+      .title-main {
+        font-weight: 300;
+        font-size: 34px;
+        letter-spacing: 3px;
+        margin-bottom: 10px;
+        color: #ffffff;
+      }
+
+      .title-sub {
+        font-weight: 300;
+        font-size: 16px;
+        color: #b0a89e;
+        letter-spacing: 1.5px;
+        max-width: 640px;
+        line-height: 1.6;
+      }
+
+      #start-button {
+        padding: 15px 44px;
+        font-size: 17px;
+        background-color: #e5b869;
+        color: #111111;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 34px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        transition: background-color 0.25s, transform 0.2s;
+      }
+
+      #start-button:hover {
+        background-color: #f3cc85;
+        transform: translateY(-1px);
+      }
+
+      #signature {
+        position: fixed;
+        bottom: 10px;
+        right: 15px;
+        color: rgba(255, 255, 255, 0.28);
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 11px;
+        z-index: 9998;
+        pointer-events: none;
+        letter-spacing: 1px;
+      }
+
+      .a-enter-vr {
+        z-index: 10000 !important;
+      }
+    </style>
+
+    <script>
+      /* =====================================================================
+         VERİ YAPISI: 6 DEĞER BÖLÜMÜ VE HER BÖLÜMÜN 3 HATIRA SAHNESİ (18 VİDEO)
+         ===================================================================== */
+      var CHAPTERS = [
+        {
+          id: '01',
+          num: '01',
+          title: 'YARDIMLAŞMA VE DAYANIŞMA',
+          subtitle: 'İmece Kültürü ve Komşuluk',
+          accent: '#E5B869',
+          scenes: [
+            {
+              tabLabel: '1. Tarlada İmece',
+              file: '01_YARDIMLASMA_ANA.mp4',
+              rotY: -68,
+              heading: 'Yardımlaşma ve Dayanışma — Tarlada İmece Hasadı',
+              quote: '“Birlik olunca yük hafifler evlat, ellerinize sağlık.”',
+              desc: 'Anadolu’da imece geleneği, köy halkının el birliğiyle birbirinin işine koştuğu köklü bir dayanışma kültürüdür. Ortak emekle paylaşılan alın teri, toplumsal bağları güçlendirir ve hiçbir ferdin zorluklar karşısında yalnız kalmamasını sağlar.'
+            },
+            {
+              tabLabel: '2. Kışlık Hazırlığı',
+              file: '01_ALT_1_KISLIK_IMECE.mp4',
+              rotY: -95,
+              heading: 'Yardımlaşma ve Dayanışma — Avluda Kışlık Hazırlığı',
+              quote: '“Bereketi içinde olsun komşum, unun azsa bizim çuvaldan bölelim.”',
+              desc: 'Kışlık erişte ve erzak hazırlıkları, komşuların yalnızca emeğini değil elindeki nimeti de cömertçe paylaştığı bereket meclisleridir. Komşunun eksiğini gözetmek, yardımlaşma değerinin günlük yaşamdaki en samimi yansımasıdır.'
+            },
+            {
+              tabLabel: '3. Çeşme Başı',
+              file: '01_ALT_2_CESME_BASI.mp4',
+              rotY: -72,
+              heading: 'Yardımlaşma ve Dayanışma — Mahalle Çeşmesinde Yardım',
+              quote: '“Aman teyzem sen zahmet etme, ben kapına kadar bırakırım.”',
+              desc: 'Mahalle kültüründe yaşlıların ve ihtiyaç sahiplerinin yükünü omuzlamak, karşılık beklenmeden yapılan doğal bir insanlık görevidir. Küçük bir nezaket ve yardım davranışı, kuşaklar arası sevgi ve güveni canlı tutar.'
+            }
+          ]
+        },
+        {
+          id: '02',
+          num: '02',
+          title: 'SAYGI VE BÜYÜKLERE HÜRMET',
+          subtitle: 'Bayram, Meclis ve Ahilik Adabı',
+          accent: '#E08E55',
+          scenes: [
+            {
+              tabLabel: '1. Bayram Sabahı',
+              file: '02_SAYGI_ANA.mp4',
+              rotY: -95,
+              heading: 'Saygı ve Büyüklere Hürmet — Bayram Sabahı El Öpme',
+              quote: '“Bayramınız kutlu olsun dedeciğim, nice mutlu bayramlara.”',
+              desc: 'Bayram sabahları büyüklerin elini öpüp hayır duasını almak, aile bağlarını ve kuşaklar arası vefayı yaşatan en değerli geleneklerimizdendir. Büyüklere gösterilen hürmet, geçmişin tecrübesine duyulan minnetin ifadesidir.'
+            },
+            {
+              tabLabel: '2. Köy Odası',
+              file: '02_ALT_1_KOY_ODASI.mp4',
+              rotY: -133,
+              heading: 'Saygı ve Büyüklere Hürmet — Köy Odası ve Dinleme Adabı',
+              quote: '“Söz büyüğün, su küçüğündür derler ama asıl edep dinlemeyi bilmektir.”',
+              desc: 'Geleneksel köy odaları, gençlerin büyüklerin tecrübelerini saygıyla dinleyerek hayat adabını öğrendiği birer irfan okuludur. Karşımızdakini sözünü kesmeden dinlemek, insana ve bilgiye duyulan saygının temelidir.'
+            },
+            {
+              tabLabel: '3. Usta - Çırak',
+              file: '02_ALT_2_USTA_CIRAK.mp4',
+              rotY: -95,
+              heading: 'Saygı ve Büyüklere Hürmet — Ahilikte Usta-Çırak Hürmeti',
+              quote: '“Hakkın ödenmez ustam, izindeyiz.”',
+              desc: 'Ahilik geleneğinde usta, çırağına yalnızca zanaatın inceliklerini değil; dürüstlüğü, tevazuyu ve meslek ahlakını da öğretir. Emeğe ve öğreten kişiye duyulan saygı, bilginin nesilden nesile değer kazanarak aktarılmasını sağlar.'
+            }
+          ]
+        },
+        {
+          id: '03',
+          num: '03',
+          title: 'MİSAFİRPERVERLİK VE PAYLAŞMA',
+          subtitle: 'Tanrı Misafiri ve Gönül Sofrası',
+          accent: '#5EC2B7',
+          scenes: [
+            {
+              tabLabel: '1. Tanrı Misafiri',
+              file: '03_MISAFIR_ANA.mp4',
+              rotY: -90,
+              heading: 'Misafirperverlik ve Paylaşma — Tanrı Misafiri',
+              quote: '“Buyur kardaşım, Tanrı misafiri başımızın tacıdır, geç içeri ısın.”',
+              desc: 'Anadolu kültüründe kapıyı çalan yolcu “Tanrı misafiri” kabul edilir ve bereketiyle geldiğine inanılır. Tanımadığı bir insana bile kapısını ve gönlünü açmak, insan onuruna verilen koşulsuz değerin göstergesidir.'
+            },
+            {
+              tabLabel: '2. Yer Sofrası',
+              file: '03_ALT_1_YER_SOFRASI.mp4',
+              rotY: -83,
+              heading: 'Misafirperverlik ve Paylaşma — Yer Sofrasında Ekmeği Bölüşme',
+              quote: '“Soframız sadedir ama lokmamız helaldir, bismillah buyur.”',
+              desc: 'Paylaşmanın değeri sofranın gösterişinde değil, bölüşülen ekmeğin samimiyetindedir. Elindeki en güzel payı misafirine sunmak, cömertlik ve diğerkâmlık değerlerinin kültürümüzdeki en sıcak karşılığıdır.'
+            },
+            {
+              tabLabel: '3. Kahve İkramı',
+              file: '03_ALT_2_KAHVE_IKRAMI.mp4',
+              rotY: -80,
+              heading: 'Misafirperverlik ve Paylaşma — Kırk Yıllık Hatır',
+              quote: '“Gönül sohbet ister kahve bahane, afiyet olsun, kırk yıl hatırı kalsın.”',
+              desc: '“Bir fincan kahvenin kırk yıl hatırı vardır” atasözü, ikramın maddi değerinden ziyade kurulan dostluk ve vefa bağının kalıcılığını anlatır. İkram kültürü, gönüller arasında kalıcı köprüler kurar.'
+            }
+          ]
+        },
+        {
+          id: '04',
+          num: '04',
+          title: 'KANAATKÂRLIK VE ÜRETKENLİK',
+          subtitle: 'Alın Teri, Şükür ve Onarım',
+          accent: '#82C97E',
+          scenes: [
+            {
+              tabLabel: '1. Nimete Şükür',
+              file: '04_KANAAT_ANA.mp4',
+              rotY: -83,
+              heading: 'Kanaatkârlık ve Üretkenlik — Taş Fırında Ekmek ve Nimete Saygı',
+              quote: '“Tek bir kırıntısı bile ziyan edilmez, çok şükür bugünkü rızkımıza.”',
+              desc: 'Yere düşen ekmeği öpüp alnına koyan kültürümüz, nimete ve o nimeti var eden emeğe duyulan derin saygıyı simgeler. Kanaatkârlık ve şükür bilinci, sahip olduklarımızın kıymetini bilerek israftan kaçınmayı öğretir.'
+            },
+            {
+              tabLabel: '2. Sabır ve Zanaat',
+              file: '04_ALT_1_COMLEK_DOKUMA.mp4',
+              rotY: -165,
+              heading: 'Kanaatkârlık ve Üretkenlik — Alın Teriyle Üretmek',
+              quote: '“Hazıra konmak değil, alın teriyle üretmektir insanı yaşatan.”',
+              desc: 'Toprağa şekil veren çömlek ustası ve ilmek ilmek halı dokuyan eller, sabrın ve üretkenliğin sembolüdür. Kendi emeğiyle değer üretmek, insana özgüven, sorumluluk bilinci ve anlamlı bir yaşam kazandırır.'
+            },
+            {
+              tabLabel: '3. Eşya Onarımı',
+              file: '04_ALT_2_ESYA_ONARIMI.mp4',
+              rotY: -72,
+              heading: 'Kanaatkârlık ve Üretkenlik — İsraf Etmeme ve Onarım Kültürü',
+              quote: '“Kırıldı diye atmak kolaydır yavrum, marifet onarmakta ve kıymet bilmektedir.”',
+              desc: 'Kullan-at alışkanlığının aksine onarım kültürü; emeğe, doğaya ve hatıralara sahip çıkmayı öğretir. Eşyayı onararak yaşatmak, hem tutumluluk değerini hem de sürdürülebilir yaşam bilincini besler.'
+            }
+          ]
+        },
+        {
+          id: '05',
+          num: '05',
+          title: 'VATANSEVERLİK VE FEDAKÂRLIK',
+          subtitle: 'İstiklal Ruhu ve Vefa',
+          accent: '#E26A6A',
+          scenes: [
+            {
+              tabLabel: '1. İstiklal Yolu',
+              file: '05_VATAN_ANA.mp4',
+              rotY: -112,
+              heading: 'Vatanseverlik ve Fedakârlık — Cephane ve Fedakâr Anadolu Kadını',
+              quote: '“Bebem örtüsüz kalsa da dayanır, ama bu cephane ıslanırsa vatan öksüz kalır.”',
+              desc: 'Millî Mücadele yıllarında kağnılarla cephane taşıyan Anadolu kadınları, vatan sevgisinin ve fedakârlığın tarihteki en yüce örneklerini sergilemiştir. Bağımsızlık, milletimizin ortak inancı ve eşsiz özverisiyle kazanılmıştır.'
+            },
+            {
+              tabLabel: '2. Çanakkale Siperi',
+              file: '05_ALT_1_CANAKKALE_SIPER.mp4',
+              rotY: -97,
+              heading: 'Vatanseverlik ve Fedakârlık — Çanakkale Ruhu',
+              quote: '“Ana, hakkını helal et, vatan toprağı bölünmesin diye nöbetteyiz.”',
+              desc: 'Çanakkale siperlerinde son kuru ekmeğini silah arkadaşıyla bölüşen Mehmetçik, vatan sevgisi ile kardeşlik ruhunu aynı yürekte birleştirmiştir. Tarihî mirası anlamak, toplumsal sorumluluk ve vefa bilincimizi güçlendirir.'
+            },
+            {
+              tabLabel: '3. Cephe Gerisi',
+              file: '05_ALT_2_CEPHE_GERISI.mp4',
+              rotY: -90,
+              heading: 'Vatanseverlik ve Fedakârlık — Cephe Gerisinde Sessiz Kahramanlar',
+              quote: '“Her ilmeğe duamızı kattık, Mehmetçiğimin ayağı üşümesin.”',
+              desc: 'Vatan savunması yalnızca cephede değil, gaz lambası ışığında askerlere çarık ve çorap ören ninelerin duaları ve emeğiyle kazanılmıştır. Topyekûn dayanışma, zor zamanlarda bir milleti ayakta tutan en büyük güçtür.'
+            }
+          ]
+        },
+        {
+          id: '06',
+          num: '06',
+          title: 'OYUN VE KARDEŞLİK',
+          subtitle: 'Geleneksel Çocuk Oyunları',
+          accent: '#6CB4EE',
+          scenes: [
+            {
+              tabLabel: '1. Sokakta Misket',
+              file: '06_OYUN_ANA.mp4',
+              rotY: -90,
+              heading: 'Oyun ve Kardeşlik — Misket Oyunu ve Paylaşma Sevinci',
+              quote: '“Üzülme kardeşim, al bu misketler senin olsun, birlikte oynayınca güzel.”',
+              desc: 'Geleneksel sokak oyunlarında asıl amaç kazanmaktan çok arkadaşlığı ve neşeyi paylaşmaktır. Kazandığını arkadaşıyla bölüşebilen çocuk, empati kurmayı ve birlikte mutlu olmanın değerini yaşayarak öğrenir.'
+            },
+            {
+              tabLabel: '2. Seksek ve Topaç',
+              file: '06_ALT_1_SEKSEK_TOPA.mp4',
+              rotY: -80,
+              heading: 'Oyun ve Kardeşlik — Düşeni Kaldırmak ve Dostluk',
+              quote: '“Oyun kazanılır kaybedilir ama dostluk baki kalır, hadi gel beraber atlayalım.”',
+              desc: 'Mahalle sokağındaki seksek ve topaç oyunları; dürüstlüğü, kurallara uymayı ve düşen arkadaşının elinden tutmayı öğreten doğal bir sosyal ortamdır. Rekabetin önüne geçen dostluk, sağlam karakter gelişiminin temelidir.'
+            },
+            {
+              tabLabel: '3. Beştaş ve Körebe',
+              file: '06_ALT_2_ASIK_BES_TAS.mp4',
+              rotY: -90,
+              heading: 'Oyun ve Kardeşlik — Çınaraltında Beştaş ve Kuşaklar Arası Aktarım',
+              quote: '“Eskiden oyuncaklarımız taştandı ama kalplerimiz altındandı, sıra sende kardeşim.”',
+              desc: 'Doğadaki beş küçük taşla kurulan samimi oyunlar, ekranlardan uzak yüz yüze iletişimin ve sabırla öğretmenin sıcaklığını taşır. Büyük çocuğun küçüğe oyunu öğretmesi, kardeşlik ve rehberlik kültürünü yaşatır.'
+            }
+          ]
+        }
+      ];
+
+      /* =====================================================================
+         UYGULAMA DURUMU (STATE)
+         ===================================================================== */
+      var appState = {
+        mode: 'idle',          // 'idle' | 'hub' | 'scene'
+        activeChapterIdx: 0,
+        activeSceneIdx: 0,
+        sceneEnded: false
+      };
+
+      /* =====================================================================
+         CANVAS YARDIMCI ÇİZİM FONKSİYONLARI (KUSURSUZ TÜRKÇE TİPOGRAFİ)
+         ===================================================================== */
+      var UI_FONT = "'Segoe UI', Tahoma, Arial, sans-serif";
+
+      function drawRoundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+      }
+
+      function drawWrappedText(ctx, text, centerX, startY, maxWidth, lineHeight) {
+        var words = text.split(' ');
+        var lines = [];
+        var currentLine = '';
+
+        for (var i = 0; i < words.length; i++) {
+          var testLine = currentLine ? currentLine + ' ' + words[i] : words[i];
+          if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+            lines.push(currentLine);
+            currentLine = words[i];
+          } else {
+            currentLine = testLine;
+          }
+        }
+        if (currentLine) lines.push(currentLine);
+
+        for (var j = 0; j < lines.length; j++) {
+          ctx.fillText(lines[j], centerX, startY + j * lineHeight);
+        }
+        return lines.length;
+      }
+
+      function attachCanvasTextureToMesh(el, canvas) {
+        var texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.needsUpdate = true;
+
+        function apply() {
+          var mesh = el.getObject3D('mesh');
+          if (!mesh) return;
+          mesh.material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.FrontSide
+          });
+          mesh.material.needsUpdate = true;
+        }
+
+        apply();
+        el.addEventListener('object3dset', function (evt) {
+          if (evt.detail.type === 'mesh') apply();
+        });
+
+        return texture;
+      }
+
+      /* =====================================================================
+         VİDEO VE SAHNE YÖNETİMİ
+         ===================================================================== */
+      function startExperience() {
+        if (appState.mode !== 'idle') return;
+
+        var vidIntro = document.getElementById('vid-intro');
+        var vidLoop = document.getElementById('vid-loop');
+        var vidScene = document.getElementById('vid-scene');
+
+        var sphereIntro = document.getElementById('sphere-intro');
+        var sphereLoop = document.getElementById('sphere-loop');
+        var sphereScene = document.getElementById('sphere-scene');
+
+        appState.mode = 'hub';
+        document.getElementById('start-screen').style.display = 'none';
+
+        // VR kontrolcüsü (WebXR) tıklamalarında sesli oynatma izni için
+        // döngü ve sahne oynatıcılarını sessizce kilitten çıkarıyoruz.
+        [vidLoop, vidScene].forEach(function (v) {
+          v.muted = true;
+          var p = v.play();
+          if (p && p.then) {
+            p.then(function () {
+              if (v === vidScene && appState.mode === 'scene') {
+                v.muted = false;
+                return;
+              }
+              if (v === vidLoop && appState.mode === 'hub' && sphereLoop.getAttribute('visible') === true) {
+                v.muted = false;
+                return;
+              }
+              v.pause();
+              v.currentTime = 0;
+              v.muted = false;
+            }).catch(function () {
+              v.muted = false;
+            });
+          } else {
+            v.pause();
+            v.muted = false;
+          }
+        });
+
+        // İlk girişte 00_A (Bilge Dede karşılama konuşması) 1 kez oynar
+        sphereLoop.setAttribute('visible', 'false');
+        sphereScene.setAttribute('visible', 'false');
+        sphereIntro.setAttribute('visible', 'true');
+
+        vidIntro.loop = false;
+        vidIntro.muted = false;
+        vidIntro.currentTime = 0;
+        vidIntro.play().catch(function (err) {
+          console.log('Giriş videosu başlatılamadı, döngü videosuna geçiliyor:', err);
+          activateHubLoop();
+        });
+      }
+
+      function activateHubLoop() {
+        if (appState.mode !== 'hub') return;
+
+        var vidIntro = document.getElementById('vid-intro');
+        var vidLoop = document.getElementById('vid-loop');
+        var sphereIntro = document.getElementById('sphere-intro');
+        var sphereLoop = document.getElementById('sphere-loop');
+        var sphereScene = document.getElementById('sphere-scene');
+
+        vidIntro.pause();
+        vidLoop.loop = true;
+        vidLoop.muted = false;
+
+        sphereLoop.setAttribute('visible', 'true');
+        sphereIntro.setAttribute('visible', 'false');
+        sphereScene.setAttribute('visible', 'false');
+
+        vidLoop.play().catch(function (e) { console.log(e); });
+      }
+
+      function openChapterScene(chapterIdx, sceneIdx) {
+        var chapter = CHAPTERS[chapterIdx];
+        if (!chapter) return;
+        var sceneData = chapter.scenes[sceneIdx] || chapter.scenes[0];
+
+        appState.mode = 'scene';
+        appState.activeChapterIdx = chapterIdx;
+        appState.activeSceneIdx = sceneIdx;
+        appState.sceneEnded = false;
+
+        var vidIntro = document.getElementById('vid-intro');
+        var vidLoop = document.getElementById('vid-loop');
+        var vidScene = document.getElementById('vid-scene');
+
+        var sphereIntro = document.getElementById('sphere-intro');
+        var sphereLoop = document.getElementById('sphere-loop');
+        var sphereScene = document.getElementById('sphere-scene');
+
+        // Hub videolarını durdur ve ana menüyü gizle
+        vidIntro.pause();
+        vidLoop.pause();
+        document.getElementById('hub-entities').setAttribute('position', '0 9999 0');
+
+        // Sahne içi kontrolleri ve bilgi noktasını göster, bilgi panelini kapalı tut
+        document.getElementById('scene-controls-entity').setAttribute('position', '0 -0.32 -2.45');
+        document.getElementById('hotspot-entity').setAttribute('position', '1.85 2.05 -3.0');
+        document.getElementById('info-panel-entity').setAttribute('position', '0 9999 0');
+
+        // Alt sahne sekmelerini ve bilgi panelini güncelle
+        updateSceneControlsUI();
+        updateInfoPanelUI();
+
+        // Sahnenin ana karakterini karşıya hizala ve küreyi görünür yap
+        var targetRotY = (typeof sceneData.rotY === 'number') ? sceneData.rotY : -90;
+        sphereScene.setAttribute('rotation', '0 ' + targetRotY + ' 0');
+        sphereIntro.setAttribute('visible', 'false');
+        sphereLoop.setAttribute('visible', 'false');
+        sphereScene.setAttribute('visible', 'true');
+
+        // Seçilen sahne videosunu yükle ve 1 kez oynat (döngü kapalı)
+        vidScene.pause();
+        vidScene.loop = false;
+        vidScene.muted = false;
+
+        if (vidScene.getAttribute('data-file') !== sceneData.file) {
+          vidScene.setAttribute('data-file', sceneData.file);
+          vidScene.src = sceneData.file;
+          vidScene.load();
+        } else {
+          vidScene.currentTime = 0;
+        }
+
+        vidScene.play().catch(function (e) { console.log('Sahne oynatma hatası:', e); });
+      }
+
+      function replayCurrentScene() {
+        if (appState.mode !== 'scene') return;
+        var vidScene = document.getElementById('vid-scene');
+        appState.sceneEnded = false;
+        updateReplayButtonState();
+        vidScene.loop = false;
+        vidScene.muted = false;
+        vidScene.currentTime = 0;
+        vidScene.play().catch(function (e) { console.log(e); });
+      }
+
+      function returnToHub() {
+        var vidScene = document.getElementById('vid-scene');
+        vidScene.pause();
+
+        appState.mode = 'hub';
+        appState.sceneEnded = false;
+
+        // Sahne arayüzlerini gizle
+        document.getElementById('scene-controls-entity').setAttribute('position', '0 9999 0');
+        document.getElementById('hotspot-entity').setAttribute('position', '0 9999 0');
+        document.getElementById('info-panel-entity').setAttribute('position', '0 9999 0');
+
+        // Ana menüyü geri getir ve 00_B döngü videosunu çalıştır
+        document.getElementById('hub-entities').setAttribute('position', '0 0 0');
+        activateHubLoop();
+      }
+
+      function updateSceneControlsUI() {
+        var chapter = CHAPTERS[appState.activeChapterIdx];
+        if (!chapter) return;
+
+        for (var i = 0; i < 3; i++) {
+          var tabEl = document.getElementById('sub-tab-' + i);
+          if (tabEl && tabEl.components['scene-tab-btn']) {
+            tabEl.components['scene-tab-btn'].refresh(
+              chapter.scenes[i].tabLabel,
+              chapter.accent,
+              i === appState.activeSceneIdx
+            );
+          }
+        }
+        updateReplayButtonState();
+      }
+
+      function updateReplayButtonState() {
+        var replayEl = document.getElementById('replay-btn');
+        var chapter = CHAPTERS[appState.activeChapterIdx];
+        if (replayEl && replayEl.components['action-btn'] && chapter) {
+          replayEl.components['action-btn'].setHighlight(appState.sceneEnded, chapter.accent);
+        }
+      }
+
+      function updateInfoPanelUI() {
+        var chapter = CHAPTERS[appState.activeChapterIdx];
+        if (!chapter) return;
+        var sceneData = chapter.scenes[appState.activeSceneIdx];
+        var panelEl = document.getElementById('info-panel-bg');
+        if (panelEl && panelEl.components['info-panel-canvas']) {
+          panelEl.components['info-panel-canvas'].setContent(
+            sceneData.heading,
+            sceneData.quote,
+            sceneData.desc,
+            chapter.accent
+          );
+        }
+      }
+
+      /* =====================================================================
+         A-FRAME BİLEŞENLERİ (COMPONENTS)
+         ===================================================================== */
+
+      // 1. Ana Menü Üst Başlık Tabelası
+      AFRAME.registerComponent('hub-header-canvas', {
+        init: function () {
+          var canvas = document.createElement('canvas');
+          canvas.width = 1400;
+          canvas.height = 224;
+          var ctx = canvas.getContext('2d');
+
+          drawRoundRect(ctx, 8, 8, 1384, 208, 22);
+          ctx.fillStyle = 'rgba(8, 8, 10, 0.80)';
+          ctx.fill();
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = 'rgba(229, 184, 105, 0.50)';
+          ctx.stroke();
+
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+
+          ctx.font = '600 46px ' + UI_FONT;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillText('DEĞERLER EĞİTİMİ: ÇINARALTI HATIRALARI', 700, 80);
+
+          ctx.fillStyle = 'rgba(229, 184, 105, 0.5)';
+          ctx.fillRect(420, 126, 560, 2);
+
+          ctx.font = '400 29px ' + UI_FONT;
+          ctx.fillStyle = '#D8CFC2';
+          ctx.fillText('Geçmişin izinde dokunmak istediğiniz değeri seçiniz', 700, 168);
+
+          attachCanvasTextureToMesh(this.el, canvas);
+        }
+      });
+
+      // 2. Ana Menü Değer Seçim Kartları (6 Adet)
+      AFRAME.registerComponent('chapter-card', {
+        schema: {
+          chapterIndex: { type: 'int', default: 0 }
+        },
+        init: function () {
+          var self = this;
+          var el = this.el;
+          this.chapter = CHAPTERS[this.data.chapterIndex];
+          this.hovered = false;
+
+          this.canvas = document.createElement('canvas');
+          this.canvas.width = 940;
+          this.canvas.height = 340;
+          this.ctx = this.canvas.getContext('2d');
+          this.texture = attachCanvasTextureToMesh(el, this.canvas);
+
+          this.draw();
+
+          el.addEventListener('mouseenter', function () {
+            self.hovered = true;
+            self.draw();
+            el.setAttribute('animation', { property: 'scale', to: '1.04 1.04 1.04', dur: 220 });
+          });
+
+          el.addEventListener('mouseleave', function () {
+            self.hovered = false;
+            self.draw();
+            el.setAttribute('animation', { property: 'scale', to: '1 1 1', dur: 220 });
+          });
+
+          el.addEventListener('click', function () {
+            openChapterScene(self.data.chapterIndex, 0);
+          });
+        },
+        draw: function () {
+          var ctx = this.ctx;
+          var w = this.canvas.width;
+          var h = this.canvas.height;
+          var ch = this.chapter;
+
+          ctx.clearRect(0, 0, w, h);
+
+          // Kart arka planı
+          drawRoundRect(ctx, 8, 8, w - 16, h - 16, 20);
+          ctx.fillStyle = this.hovered ? 'rgba(28, 26, 24, 0.94)' : 'rgba(10, 10, 12, 0.84)';
+          ctx.fill();
+
+          // Çerçeve
+          ctx.lineWidth = this.hovered ? 5 : 3;
+          ctx.strokeStyle = this.hovered ? ch.accent : 'rgba(255, 255, 255, 0.24)';
+          ctx.stroke();
+
+          // Sol vurgu şeridi
+          drawRoundRect(ctx, 26, 36, 10, h - 72, 5);
+          ctx.fillStyle = ch.accent;
+          ctx.fill();
+
+          // Bölüm numarası rozeti
+          drawRoundRect(ctx, 58, 34, 86, 44, 12);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+          ctx.fill();
+          ctx.font = '700 25px ' + UI_FONT;
+          ctx.fillStyle = ch.accent;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(ch.num, 101, 57);
+
+          // Sağ üst "3 Hatıra" bilgisi
+          ctx.font = '400 23px ' + UI_FONT;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+          ctx.textAlign = 'right';
+          ctx.fillText('3 Hatıra Sahnesi ›', w - 42, 57);
+
+          // Ana değer başlığı (uzun başlıklarda otomatik boyut sığdırma)
+          ctx.textAlign = 'left';
+          var titleSize = 38;
+          ctx.font = '700 ' + titleSize + 'px ' + UI_FONT;
+          while (ctx.measureText(ch.title).width > (w - 100) && titleSize > 26) {
+            titleSize -= 1;
+            ctx.font = '700 ' + titleSize + 'px ' + UI_FONT;
+          }
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillText(ch.title, 58, 144);
+
+          // İnce ayırıcı çizgi
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+          ctx.fillRect(58, 188, w - 116, 2);
+
+          // Alt başlık
+          ctx.font = '400 30px ' + UI_FONT;
+          ctx.fillStyle = ch.accent;
+          ctx.fillText(ch.subtitle, 58, 246);
+
+          this.texture.needsUpdate = true;
+        }
+      });
+
+      // 3. Bölüm İçi Alt Sahne Sekme Butonları (1. Ana / 2. Alt 1 / 3. Alt 2)
+      AFRAME.registerComponent('scene-tab-btn', {
+        schema: {
+          sceneIndex: { type: 'int', default: 0 }
+        },
+        init: function () {
+          var self = this;
+          var el = this.el;
+          this.label = '';
+          this.accent = '#E5B869';
+          this.isActive = false;
+          this.hovered = false;
+
+          this.canvas = document.createElement('canvas');
+          this.canvas.width = 560;
+          this.canvas.height = 160;
+          this.ctx = this.canvas.getContext('2d');
+          this.texture = attachCanvasTextureToMesh(el, this.canvas);
+
+          this.draw();
+
+          el.addEventListener('mouseenter', function () {
+            self.hovered = true;
+            self.draw();
+            el.setAttribute('animation', { property: 'scale', to: '1.05 1.05 1.05', dur: 180 });
+          });
+
+          el.addEventListener('mouseleave', function () {
+            self.hovered = false;
+            self.draw();
+            el.setAttribute('animation', { property: 'scale', to: '1 1 1', dur: 180 });
+          });
+
+          el.addEventListener('click', function () {
+            openChapterScene(appState.activeChapterIdx, self.data.sceneIndex);
+          });
+        },
+        refresh: function (label, accent, isActive) {
+          this.label = label;
+          this.accent = accent;
+          this.isActive = isActive;
+          this.draw();
+        },
+        draw: function () {
+          var ctx = this.ctx;
+          var w = this.canvas.width;
+          var h = this.canvas.height;
+          ctx.clearRect(0, 0, w, h);
+
+          drawRoundRect(ctx, 6, 6, w - 12, h - 12, 18);
+          if (this.isActive) {
+            ctx.fillStyle = 'rgba(35, 32, 28, 0.96)';
+          } else if (this.hovered) {
+            ctx.fillStyle = 'rgba(40, 40, 45, 0.94)';
+          } else {
+            ctx.fillStyle = 'rgba(15, 15, 18, 0.88)';
+          }
+          ctx.fill();
+
+          ctx.lineWidth = this.isActive ? 5 : 3;
+          ctx.strokeStyle = (this.isActive || this.hovered) ? this.accent : 'rgba(255, 255, 255, 0.25)';
+          ctx.stroke();
+
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = (this.isActive ? '700 ' : '500 ') + '33px ' + UI_FONT;
+          ctx.fillStyle = this.isActive ? this.accent : '#EAEAEA';
+          ctx.fillText(this.label, w / 2, h / 2 + 2);
+
+          this.texture.needsUpdate = true;
+        }
+      });
+
+      // 4. Alt Kontrol Aksiyon Butonları (Tekrar Oynat & Ana Menüye Dön)
+      AFRAME.registerComponent('action-btn', {
+        schema: {
+          label: { type: 'string', default: '' },
+          action: { type: 'string', default: 'replay' }
+        },
+        init: function () {
+          var self = this;
+          var el = this.el;
+          this.hovered = false;
+          this.highlighted = false;
+          this.accent = '#E5B869';
+
+          this.canvas = document.createElement('canvas');
+          this.canvas.width = 760;
+          this.canvas.height = 170;
+          this.ctx = this.canvas.getContext('2d');
+          this.texture = attachCanvasTextureToMesh(el, this.canvas);
+
+          this.draw();
+
+          el.addEventListener('mouseenter', function () {
+            self.hovered = true;
+            self.draw();
+            el.setAttribute('animation', { property: 'scale', to: '1.04 1.04 1.04', dur: 180 });
+          });
+
+          el.addEventListener('mouseleave', function () {
+            self.hovered = false;
+            self.draw();
+            el.setAttribute('animation', { property: 'scale', to: '1 1 1', dur: 180 });
+          });
+
+          el.addEventListener('click', function () {
+            if (self.data.action === 'replay') {
+              replayCurrentScene();
+            } else if (self.data.action === 'hub') {
+              returnToHub();
+            }
+          });
+        },
+        setHighlight: function (flag, accent) {
+          this.highlighted = flag;
+          if (accent) this.accent = accent;
+          this.draw();
+        },
+        draw: function () {
+          var ctx = this.ctx;
+          var w = this.canvas.width;
+          var h = this.canvas.height;
+          ctx.clearRect(0, 0, w, h);
+
+          drawRoundRect(ctx, 6, 6, w - 12, h - 12, 18);
+          if (this.hovered) {
+            ctx.fillStyle = 'rgba(48, 48, 54, 0.96)';
+          } else if (this.highlighted) {
+            ctx.fillStyle = 'rgba(36, 30, 22, 0.95)';
+          } else {
+            ctx.fillStyle = 'rgba(20, 20, 24, 0.92)';
+          }
+          ctx.fill();
+
+          ctx.lineWidth = (this.highlighted || this.hovered) ? 4 : 3;
+          ctx.strokeStyle = this.highlighted
+            ? this.accent
+            : (this.hovered ? '#FFFFFF' : 'rgba(255, 255, 255, 0.32)');
+          ctx.stroke();
+
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = '600 34px ' + UI_FONT;
+          ctx.fillStyle = this.highlighted ? this.accent : '#FFFFFF';
+          ctx.fillText(this.data.label, w / 2, h / 2 + 2);
+
+          this.texture.needsUpdate = true;
+        }
+      });
+
+      // 5. Bilgi Noktası ('i' Hotspot)
+      AFRAME.registerComponent('hotspot-btn', {
+        init: function () {
+          var el = this.el;
+          var parent = el.parentElement;
+          var canvas = document.createElement('canvas');
+          canvas.width = 256;
+          canvas.height = 256;
+          var ctx = canvas.getContext('2d');
+
+          ctx.beginPath();
+          ctx.arc(128, 128, 110, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(10, 10, 14, 0.85)';
+          ctx.fill();
+          ctx.lineWidth = 8;
+          ctx.strokeStyle = '#E5B869';
+          ctx.stroke();
+
+          ctx.font = 'italic 700 120px Georgia, serif';
+          ctx.fillStyle = '#FFFFFF';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('i', 128, 134);
+
+          attachCanvasTextureToMesh(el, canvas);
+
+          el.addEventListener('mouseenter', function () {
+            parent.setAttribute('scale', '1.18 1.18 1.18');
+          });
+          el.addEventListener('mouseleave', function () {
+            parent.setAttribute('scale', '1 1 1');
+          });
+          el.addEventListener('click', function () {
+            document.getElementById('info-panel-entity').setAttribute('position', '0 1.55 -2.5');
+            parent.setAttribute('position', '0 9999 0');
+          });
+        }
+      });
+
+      // 6. Bilgi Paneli (Türkçe Başlık + Sahnedeki Söz + Değer Açıklaması)
+      AFRAME.registerComponent('info-panel-canvas', {
+        init: function () {
+          this.canvas = document.createElement('canvas');
+          this.canvas.width = 1360;
+          this.canvas.height = 700;
+          this.ctx = this.canvas.getContext('2d');
+          this.texture = attachCanvasTextureToMesh(this.el, this.canvas);
+          this.setContent(
+            CHAPTERS[0].scenes[0].heading,
+            CHAPTERS[0].scenes[0].quote,
+            CHAPTERS[0].scenes[0].desc,
+            CHAPTERS[0].accent
+          );
+        },
+        setContent: function (heading, quote, desc, accent) {
+          var ctx = this.ctx;
+          var w = this.canvas.width;
+          var h = this.canvas.height;
+          ctx.clearRect(0, 0, w, h);
+
+          // Ana panel kutusu
+          drawRoundRect(ctx, 10, 10, w - 20, h - 20, 26);
+          ctx.fillStyle = 'rgba(10, 10, 14, 0.90)';
+          ctx.fill();
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = accent || 'rgba(229, 184, 105, 0.6)';
+          ctx.stroke();
+
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+
+          // Başlık (satır sayısına göre dinamik akış)
+          ctx.font = '700 36px ' + UI_FONT;
+          ctx.fillStyle = accent || '#E5B869';
+          var headingLines = drawWrappedText(ctx, heading, w / 2, 48, w - 230, 46);
+
+          // Ayırıcı çizgi
+          var dividerY = 48 + headingLines * 46 + 16;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+          ctx.fillRect(140, dividerY, w - 280, 2);
+
+          // Sahnedeki Söz (Replik)
+          var quoteStartY = dividerY + 26;
+          ctx.font = 'italic 600 34px ' + UI_FONT;
+          ctx.fillStyle = '#FFFFFF';
+          var quoteLines = drawWrappedText(ctx, quote, w / 2, quoteStartY, w - 160, 46);
+
+          // Değerler Eğitimi Açıklaması
+          var descStartY = quoteStartY + quoteLines * 46 + 28;
+          ctx.font = '400 32px ' + UI_FONT;
+          ctx.fillStyle = '#D4D4D8';
+          drawWrappedText(ctx, desc, w / 2, descStartY, w - 150, 46);
+
+          this.texture.needsUpdate = true;
+        }
+      });
+
+      // 7. Bilgi Paneli Kapatma ('X') Butonu
+      AFRAME.registerComponent('close-panel-btn', {
+        init: function () {
+          var self = this;
+          var el = this.el;
+          this.hovered = false;
+          this.canvas = document.createElement('canvas');
+          this.canvas.width = 160;
+          this.canvas.height = 160;
+          this.ctx = this.canvas.getContext('2d');
+          this.texture = attachCanvasTextureToMesh(el, this.canvas);
+          this.draw();
+
+          el.addEventListener('mouseenter', function () {
+            self.hovered = true;
+            self.draw();
+            el.setAttribute('scale', '1.12 1.12 1.12');
+          });
+          el.addEventListener('mouseleave', function () {
+            self.hovered = false;
+            self.draw();
+            el.setAttribute('scale', '1 1 1');
+          });
+          el.addEventListener('click', function () {
+            document.getElementById('info-panel-entity').setAttribute('position', '0 9999 0');
+            document.getElementById('hotspot-entity').setAttribute('position', '1.85 2.05 -3.0');
+          });
+        },
+        draw: function () {
+          var ctx = this.ctx;
+          ctx.clearRect(0, 0, 160, 160);
+          ctx.beginPath();
+          ctx.arc(80, 80, 68, 0, Math.PI * 2);
+          ctx.fillStyle = this.hovered ? '#C0392B' : '#2C2C32';
+          ctx.fill();
+          ctx.lineWidth = 5;
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+          ctx.stroke();
+
+          ctx.font = '700 66px ' + UI_FONT;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('✕', 80, 84);
+          this.texture.needsUpdate = true;
+        }
+      });
+
+      /* =====================================================================
+         SAYFA YÜKLENDİĞİNDE VİDEO OLAY DİNLEYİCİLERİNİ BAĞLA
+         ===================================================================== */
+      window.addEventListener('DOMContentLoaded', function () {
+        var sceneEl = document.querySelector('a-scene');
+        var lastFsToggleTime = 0;
+
+        function togglePageFullscreen() {
+          var now = Date.now();
+          if (now - lastFsToggleTime < 350) return;
+          lastFsToggleTime = now;
+
+          var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+          if (!fsEl) {
+            var root = document.documentElement;
+            if (root.requestFullscreen) {
+              root.requestFullscreen().catch(function () {});
+            } else if (root.webkitRequestFullscreen) {
+              root.webkitRequestFullscreen();
+            }
+          } else {
+            if (document.exitFullscreen) {
+              document.exitFullscreen().catch(function () {});
+            } else if (document.webkitExitFullscreen) {
+              document.webkitExitFullscreen();
+            }
+          }
+        }
+
+        // Giriş sayfasındayken sağ alttaki büyütme ikonuna basıldığında A-Frame'in yalnızca
+        // <canvas> elemanını tam ekran yapıp giriş ekranını arkada bırakmasını engeller;
+        // bunun yerine tüm sayfayı (giriş ekranından ayrılmadan) tam ekrana büyütür.
+        function isVrHeadsetConnected() {
+          try {
+            if (sceneEl && typeof sceneEl.checkHeadsetConnected === 'function') {
+              return !!sceneEl.checkHeadsetConnected();
+            }
+            if (window.AFRAME && AFRAME.utils && AFRAME.utils.device && typeof AFRAME.utils.device.checkHeadsetConnected === 'function') {
+              return !!AFRAME.utils.device.checkHeadsetConnected();
+            }
+          } catch (err) {}
+          return false;
+        }
+
+        function handleFullscreenButton(evt) {
+          var t = evt.target;
+          if (!t || !t.closest || !t.closest('.a-enter-vr-button, .a-enter-vr')) return;
+
+          if (appState.mode === 'idle' || !isVrHeadsetConnected()) {
+            evt.stopImmediatePropagation();
+            evt.stopPropagation();
+            evt.preventDefault();
+            togglePageFullscreen();
+          }
+        }
+
+        window.addEventListener('click', handleFullscreenButton, true);
+        window.addEventListener('touchend', handleFullscreenButton, true);
+
+        if (sceneEl && typeof sceneEl.enterVR === 'function') {
+          var originalEnterVR = sceneEl.enterVR.bind(sceneEl);
+          sceneEl.enterVR = function () {
+            if (appState.mode === 'idle' || !isVrHeadsetConnected()) {
+              togglePageFullscreen();
+              return Promise.resolve();
+            }
+            return originalEnterVR.apply(sceneEl, arguments);
+          };
+        }
+
+        function onFullscreenResize() {
+          if (sceneEl && sceneEl.resize) {
+            sceneEl.resize();
+          }
+        }
+        document.addEventListener('fullscreenchange', onFullscreenResize);
+        document.addEventListener('webkitfullscreenchange', onFullscreenResize);
+
+        var vidIntro = document.getElementById('vid-intro');
+        var vidScene = document.getElementById('vid-scene');
+        var sphereScene = document.getElementById('sphere-scene');
+        var lastSceneW = 0;
+        var lastSceneH = 0;
+
+        // 00_A karşılama videosu bittiği anda kesintisiz 00_B döngü videosuna geç
+        vidIntro.addEventListener('ended', function () {
+          activateHubLoop();
+        });
+
+        // Sahne videosunun çözünürlüğü değiştiğinde GPU dokusunu güvenle yenile
+        vidScene.addEventListener('loadeddata', function () {
+          var mesh = sphereScene.getObject3D('mesh');
+          if (!mesh || !mesh.material) return;
+          var vw = vidScene.videoWidth || 0;
+          var vh = vidScene.videoHeight || 0;
+          if (!mesh.material.map || (vw > 0 && (vw !== lastSceneW || vh !== lastSceneH))) {
+            lastSceneW = vw;
+            lastSceneH = vh;
+            if (mesh.material.map) {
+              mesh.material.map.dispose();
+            }
+            var freshTex = new THREE.VideoTexture(vidScene);
+            freshTex.minFilter = THREE.LinearFilter;
+            freshTex.magFilter = THREE.LinearFilter;
+            freshTex.needsUpdate = true;
+            mesh.material.map = freshTex;
+            mesh.material.needsUpdate = true;
+          } else if (mesh.material.map) {
+            mesh.material.map.needsUpdate = true;
+          }
+        });
+
+        // Bölüm videosu bittiğinde durur; "Tekrar Oynat" butonunu vurgular
+        vidScene.addEventListener('ended', function () {
+          if (appState.mode === 'scene') {
+            appState.sceneEnded = true;
+            updateReplayButtonState();
+          }
+        });
+      });
+    </script>
+  </head>
+
+  <body>
+    <!-- BAŞLANGIÇ EKRANI -->
+    <div id="start-screen">
+      <div class="badge-top">360° Sanal Gerçeklik Deneyimi</div>
+      <div class="title-main">DEĞERLER EĞİTİMİ: ÇINARALTI HATIRALARI</div>
+      <div class="title-sub">
+        Asırlık çınarın gölgesinde, bizi biz yapan kültürel ve insani değerlerimize<br>
+        geçmişin izinde bir yolculuk
+      </div>
+      <button id="start-button" onclick="startExperience()">GİRİŞ YAP</button>
+    </div>
+
+    <!-- Sağ alt köşe imzası -->
+    <div id="signature">by Nesretullah SATAR</div>
+
+    <a-scene cursor="rayOrigin: mouse" raycaster="objects: .clickable">
+
+      <a-assets timeout="8000">
+        <!-- Merkez (Hub) 1. Video: Karşılama konuşması (Sadece ilk girişte 1 kez oynar) -->
+        <video id="vid-intro" src="00_A_ANA_MENU_GIRIS.mp4" preload="auto" playsinline webkit-playsinline></video>
+        <!-- Merkez (Hub) 2. Video: Bilge Dede saz döngüsü (Menü seçimi yapılana kadar döngüde kalır) -->
+        <video id="vid-loop" src="00_B_ANA_MENU_LOOP.mp4" preload="auto" playsinline webkit-playsinline loop></video>
+        <!-- Bölüm & Alt Sahne Oynatıcısı: Seçilen sahneyi 1 kez oynatır, tuşa basınca tekrar çalışır -->
+        <video id="vid-scene" src="01_YARDIMLASMA_ANA.mp4" preload="metadata" playsinline webkit-playsinline></video>
+      </a-assets>
+
+      <!-- KAMERA VE VR KONTROLCÜLERİ -->
+      <a-entity id="camera-rig">
+        <a-camera position="0 1.6 0"></a-camera>
+        <a-entity laser-controls="hand: left" raycaster="objects: .clickable; far: 20"></a-entity>
+        <a-entity laser-controls="hand: right" raycaster="objects: .clickable; far: 20"></a-entity>
+      </a-entity>
+
+      <a-light type="ambient" color="#FFFFFF" intensity="1.0"></a-light>
+
+      <!-- 360° VİDEO KÜRELERİ (00_A ve 00_B videolarında Bilge Dede tam merkeze hizalı) -->
+      <a-videosphere id="sphere-intro" src="#vid-intro" radius="100" rotation="0 -68 0" visible="true"></a-videosphere>
+      <a-videosphere id="sphere-loop" src="#vid-loop" radius="100" rotation="0 -114 0" visible="false"></a-videosphere>
+      <a-videosphere id="sphere-scene" src="#vid-scene" radius="100" rotation="0 -90 0" visible="false"></a-videosphere>
+
+      <!-- ===============================================================
+           ANA MENÜ (HUB) - BİLGE DEDE'Yİ ORTADA TAMAMEN AÇIK BIRAKAN GENİŞ KANAT DÜZENİ
+           =============================================================== -->
+      <a-entity id="hub-entities" position="0 0 0">
+
+        <!-- Üst Başlık (Çınar yaprakları hizasında, Bilge Dede ve kartlarla çakışmaz) -->
+        <a-plane width="3.5" height="0.56" position="0 4.32 -4.4" rotation="18 0 0" material="shader: flat; transparent: true" hub-header-canvas></a-plane>
+
+        <!-- SOL KANAT (01, 02, 03) -->
+        <a-plane class="clickable" width="1.88" height="0.68" position="-3.55 2.82 -4.05" rotation="8 34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 0"></a-plane>
+        <a-plane class="clickable" width="1.88" height="0.68" position="-3.65 1.94 -4.05" rotation="2 34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 1"></a-plane>
+        <a-plane class="clickable" width="1.88" height="0.68" position="-3.55 1.06 -4.05" rotation="-4 34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 2"></a-plane>
+
+        <!-- SAĞ KANAT (04, 05, 06) -->
+        <a-plane class="clickable" width="1.88" height="0.68" position="3.55 2.82 -4.05" rotation="8 -34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 3"></a-plane>
+        <a-plane class="clickable" width="1.88" height="0.68" position="3.65 1.94 -4.05" rotation="2 -34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 4"></a-plane>
+        <a-plane class="clickable" width="1.88" height="0.68" position="3.55 1.06 -4.05" rotation="-4 -34 0" material="shader: flat; transparent: true" chapter-card="chapterIndex: 5"></a-plane>
+
+      </a-entity>
+
+      <!-- ===============================================================
+           BİLGİ SİSTEMİ ('i' HOTSPOT VE BİLGİ PANELİ)
+           =============================================================== -->
+      <a-entity id="hotspot-entity" position="0 9999 0" rotation="10 -28 0">
+        <a-ring color="#E5B869" radius-inner="0.14" radius-outer="0.18" opacity="0.75" material="shader: flat"
+                animation="property: scale; to: 1.22 1.22 1.22; dir: alternate; dur: 850; loop: true"></a-ring>
+        <a-plane class="clickable" width="0.28" height="0.28" position="0 0 0.01" material="shader: flat; transparent: true" hotspot-btn></a-plane>
+      </a-entity>
+
+      <a-entity id="info-panel-entity" position="0 9999 0">
+        <a-plane id="info-panel-bg" width="3.4" height="1.75" material="shader: flat; transparent: true" info-panel-canvas></a-plane>
+        <a-plane class="clickable" width="0.28" height="0.28" position="1.48 0.66 0.02" material="shader: flat; transparent: true" close-panel-btn></a-plane>
+      </a-entity>
+
+      <!-- ===============================================================
+           SAHNE İÇİ ALT KONTROL PANELİ (3 ALT SAHNE SEKMESİ + TEKRAR OYNAT + ANA MENÜ)
+           =============================================================== -->
+      <a-entity id="scene-controls-entity" position="0 9999 0" rotation="-22 0 0">
+        <!-- Üst Satır: O Değere Ait 3 Hatıra Sahnesi -->
+        <a-plane id="sub-tab-0" class="clickable" width="1.06" height="0.29" position="-1.12 0.18 0" material="shader: flat; transparent: true" scene-tab-btn="sceneIndex: 0"></a-plane>
+        <a-plane id="sub-tab-1" class="clickable" width="1.06" height="0.29" position="0 0.18 0" material="shader: flat; transparent: true" scene-tab-btn="sceneIndex: 1"></a-plane>
+        <a-plane id="sub-tab-2" class="clickable" width="1.06" height="0.29" position="1.12 0.18 0" material="shader: flat; transparent: true" scene-tab-btn="sceneIndex: 2"></a-plane>
+
+        <!-- Alt Satır: Tekrar Oynat & Ana Menüye Dön -->
+        <a-plane id="replay-btn" class="clickable" width="1.58" height="0.33" position="-0.83 -0.18 0" material="shader: flat; transparent: true"
+                 action-btn="label: ↻  Videoyu Tekrar Oynat; action: replay"></a-plane>
+        <a-plane id="hub-return-btn" class="clickable" width="1.58" height="0.33" position="0.83 -0.18 0" material="shader: flat; transparent: true"
+                 action-btn="label: ↩  Ana Menüye Dön; action: hub"></a-plane>
+      </a-entity>
+
+    </a-scene>
+  </body>
+</html>

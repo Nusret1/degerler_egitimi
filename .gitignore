@@ -1,0 +1,5 @@
+DEĞERLER PROMPT.docx
+*.docx
+~$*
+Thumbs.db
+.DS_Store
